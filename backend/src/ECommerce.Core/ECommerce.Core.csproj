@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\ECommerce.PluginContracts\ECommerce.PluginContracts.csproj" />
+  </ItemGroup>
+</Project>

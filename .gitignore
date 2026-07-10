@@ -1,0 +1,27 @@
+# Build artefacts
+bin/
+obj/
+out/
+dist/
+node_modules/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+.DS_Store
+
+# Env
+*.env
+*.env.local
+.env.*
+
+# EF Core
+**/Migrations/tmp/
+
+# NuGet
+*.nupkg

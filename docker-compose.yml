@@ -1,0 +1,51 @@
+name: ecommerce
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ecommerce
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=ecommerce;Username=ecommerce;Password=ecommerce"
+      PluginRuntime__DockerEndpoint: "unix:///var/run/docker.sock"
+      PluginRuntime__Network: "ecommerce_plugins"
+      Cors__Origins__0: "http://localhost:4200"
+    ports:
+      - "8080:8080"
+    volumes:
+      # Grant the API access to the host Docker daemon so it can spawn plugin containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - core
+      - plugins
+
+networks:
+  core:
+    name: ecommerce_core
+  plugins:
+    # The API attaches plugin containers to this network so it can reach them by container name.
+    name: ecommerce_plugins
+
+volumes:
+  db-data:

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "hello-plugin",
+    "name": "Hello Plugin",
+    "version": "0.1.0",
+    "description": "A demo plugin that returns a greeting. Proves the plugin runtime works end-to-end.",
+    "publisher": "example",
+    "image": "ecommerce/hello-plugin:0.1.0",
+    "containerPort": 8080,
+    "healthEndpoint": "/health",
+    "hostApi": "^1.0.0",
+    "permissions": [],
+    "uiExtensions": {}
+  }
+]

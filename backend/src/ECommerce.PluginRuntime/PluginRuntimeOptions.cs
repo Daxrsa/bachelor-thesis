@@ -1,0 +1,16 @@
+namespace ECommerce.PluginRuntime;
+
+public sealed class PluginRuntimeOptions
+{
+    /// <summary>Docker daemon endpoint. On Linux/macOS this is unix:///var/run/docker.sock.</summary>
+    public string DockerEndpoint { get; set; } = "unix:///var/run/docker.sock";
+
+    /// <summary>Docker network plugins are attached to so the core can reach them by container name.</summary>
+    public string Network { get; set; } = "ecommerce_plugins";
+
+    /// <summary>Prefix used when naming plugin containers (e.g. "ecom-plugin-reviews").</summary>
+    public string ContainerPrefix { get; set; } = "ecom-plugin-";
+
+    /// <summary>How long to wait for the plugin's health endpoint before marking install failed.</summary>
+    public TimeSpan HealthTimeout { get; set; } = TimeSpan.FromSeconds(30);
+}
