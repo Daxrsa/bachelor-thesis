@@ -12,7 +12,7 @@ COPY src/ECommerce.PluginContracts/ECommerce.PluginContracts.csproj src/ECommerc
 RUN dotnet restore src/ECommerce.Api/ECommerce.Api.csproj
 
 COPY src/ ./src/
-RUN dotnet publish src/ECommerce.Api/ECommerce.Api.csproj -c Release -o /out --no-restore
+RUN dotnet publish src/ECommerce.Api/ECommerce.Api.csproj -c Release -o /out
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app

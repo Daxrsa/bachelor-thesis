@@ -81,7 +81,9 @@ public sealed class PluginService : IPluginService
 
         try
         {
-            await _runtime.StartAsync(manifest, ct);
+            var running = await _runtime.StartAsync(manifest, ct);
+            record.ContainerName = running.InternalHost;
+            record.ContainerPort = running.Port;
             record.State = PluginState.Running;
             record.LastError = null;
         }

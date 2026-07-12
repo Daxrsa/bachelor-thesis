@@ -28,10 +28,28 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
     public async Task<RunningPlugin> StartAsync(PluginManifest manifest, CancellationToken ct = default)
     {
         var containerName = _opts.ContainerPrefix + manifest.Id;
+        var internalPort = $"{manifest.ContainerPort}/tcp";
+        var coreRunsInContainer = File.Exists("/.dockerenv");
 
         await EnsureNetworkAsync(ct);
         await EnsureImageAsync(manifest.Image, ct);
         await RemoveIfExistsAsync(containerName, ct);
+
+        var hostConfig = new HostConfig
+        {
+            NetworkMode = _opts.Network,
+            RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped }
+        };
+
+        // When the API runs on the host (dotnet watch), it cannot resolve container DNS names.
+        // Publish a random host port so the API can call plugins via localhost.
+        if (!coreRunsInContainer)
+        {
+            hostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>
+            {
+                [internalPort] = new List<PortBinding> { new() { HostPort = "" } }
+            };
+        }
 
         var create = await _docker.Containers.CreateContainerAsync(new CreateContainerParameters
         {
@@ -42,14 +60,10 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
                 ["ecommerce.plugin.id"] = manifest.Id,
                 ["ecommerce.plugin.version"] = manifest.Version
             },
-            HostConfig = new HostConfig
-            {
-                NetworkMode = _opts.Network,
-                RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped }
-            },
+            HostConfig = hostConfig,
             ExposedPorts = new Dictionary<string, EmptyStruct>
             {
-                [$"{manifest.ContainerPort}/tcp"] = default
+                [internalPort] = default
             }
         }, ct);
 
@@ -57,9 +71,11 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         if (!started)
             throw new InvalidOperationException($"Failed to start container for plugin {manifest.Id}");
 
-        await WaitForHealthyAsync(containerName, manifest, ct);
+        var resolved = await ResolveReachableEndpointAsync(create.ID, containerName, manifest.ContainerPort, coreRunsInContainer, ct);
 
-        return new RunningPlugin(manifest.Id, containerName, containerName, manifest.ContainerPort);
+        await WaitForHealthyAsync(resolved.Host, resolved.Port, manifest, ct);
+
+        return new RunningPlugin(manifest.Id, containerName, resolved.Host, resolved.Port);
     }
 
     public async Task StopAsync(string pluginId, CancellationToken ct = default)
@@ -97,13 +113,34 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
 
     private async Task EnsureImageAsync(string image, CancellationToken ct)
     {
-        _log.LogInformation("Pulling image {Image}", image);
         var (repo, tag) = SplitImage(image);
-        await _docker.Images.CreateImageAsync(
-            new ImagesCreateParameters { FromImage = repo, Tag = tag },
-            authConfig: null,
-            progress: new Progress<JSONMessage>(),
-            cancellationToken: ct);
+        _log.LogInformation("Pulling image {Image}", image);
+
+        try
+        {
+            await _docker.Images.CreateImageAsync(
+                new ImagesCreateParameters { FromImage = repo, Tag = tag },
+                authConfig: null,
+                progress: new Progress<JSONMessage>(),
+                cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            // For local development, allow manually built images even if registry pull fails.
+            if (await ImageExistsLocallyAsync(image, ct))
+            {
+                _log.LogWarning(ex, "Pull failed for {Image}, using existing local image", image);
+                return;
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<bool> ImageExistsLocallyAsync(string image, CancellationToken ct)
+    {
+        var list = await _docker.Images.ListImagesAsync(new ImagesListParameters { All = true }, ct);
+        return list.Any(i => i.RepoTags?.Any(t => string.Equals(t, image, StringComparison.OrdinalIgnoreCase)) == true);
     }
 
     private static (string repo, string tag) SplitImage(string image)
@@ -134,9 +171,33 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         }
     }
 
-    private async Task WaitForHealthyAsync(string containerName, PluginManifest m, CancellationToken ct)
+    private async Task<(string Host, int Port)> ResolveReachableEndpointAsync(
+        string containerId,
+        string containerName,
+        int containerPort,
+        bool coreRunsInContainer,
+        CancellationToken ct)
     {
-        var url = $"http://{containerName}:{m.ContainerPort}{m.HealthEndpoint}";
+        if (coreRunsInContainer)
+            return (containerName, containerPort);
+
+        var inspect = await _docker.Containers.InspectContainerAsync(containerId, ct);
+        var key = $"{containerPort}/tcp";
+
+        if (inspect.NetworkSettings?.Ports is not null &&
+            inspect.NetworkSettings.Ports.TryGetValue(key, out var bindings) &&
+            bindings is { Count: > 0 } &&
+            int.TryParse(bindings[0].HostPort, out var hostPort))
+        {
+            return ("localhost", hostPort);
+        }
+
+        throw new InvalidOperationException($"Could not resolve published host port for plugin container {containerName}");
+    }
+
+    private async Task WaitForHealthyAsync(string host, int port, PluginManifest m, CancellationToken ct)
+    {
+        var url = $"http://{host}:{port}{m.HealthEndpoint}";
         var deadline = DateTime.UtcNow + _opts.HealthTimeout;
 
         while (DateTime.UtcNow < deadline)

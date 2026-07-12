@@ -25,7 +25,10 @@ export class AppMenu {
         this.model = [
             {
                 label: 'Home',
-                items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/'] }]
+                items: [
+                    { label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/'] },
+                    { label: 'Plugin Catalog', icon: 'pi pi-fw pi-box', routerLink: ['/plugin-catalog'] }
+                ]
             },
             {
                 label: 'UI Components',
