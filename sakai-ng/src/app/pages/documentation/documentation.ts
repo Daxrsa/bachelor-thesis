@@ -16,7 +16,7 @@ import { Component } from '@angular/core';
                 Once CLI is ready in your system, extract the contents of the zip file distribution, cd to the directory, install the libraries from npm and then execute "ng serve" to run the application in your local environment.
             </p>
             <pre class="app-code">
-<code>git clone https://github.com/primefaces/sakai-ng
+<code>git clone https://github.com/Daxrsa/bachelor-thesis
 npm install
 ng serve</code></pre>
 
