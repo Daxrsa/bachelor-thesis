@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Observable, timeout } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -27,13 +27,13 @@ import { PasswordModule } from 'primeng/password';
             </div>
 
             <div class="flex flex-wrap gap-2 mb-4">
-                <p-button label="Register" (onClick)="register()" [loading]="busy" />
-                <p-button label="Login" (onClick)="login()" [loading]="busy" severity="secondary" />
-                <p-button label="Install Hello Plugin" (onClick)="installHelloPlugin()" [loading]="busy" severity="success" />
+                <p-button *ngIf="!installed" label="Install Plugin" (onClick)="installPlugin()" [loading]="busy" severity="success" />
+                <p-button *ngIf="installed" label="Uninstall Plugin" (onClick)="uninstallPlugin()" [loading]="busy" severity="danger" />
                 <p-button label="Call Greeting" (onClick)="callGreeting()" [loading]="busy" severity="contrast" />
             </div>
 
             <div class="mb-2"><b>Status:</b> {{ status }}</div>
+            <div class="mb-2"><b>Installed:</b> {{ installed ? 'Yes' : 'No' }}</div>
             <div class="mb-2"><b>Greeting:</b> {{ greeting }}</div>
             <div class="text-red-500" *ngIf="error"><b>Error:</b> {{ error }}</div>
         </div>
@@ -41,8 +41,11 @@ import { PasswordModule } from 'primeng/password';
 })
 export class HelloPluginWidget {
     private readonly http = inject(HttpClient);
+    private readonly cdr = inject(ChangeDetectorRef);
     private readonly apiBase = 'http://localhost:8080';
     private readonly requestTimeoutMs = 45000;
+    private readonly pluginId = 'hello-plugin';
+    private readonly tokenStorageKey = 'ecommerce.token';
 
     email = 'pluginadmin@example.com';
     password = 'Passw0rd!';
@@ -51,6 +54,18 @@ export class HelloPluginWidget {
     greeting = '-';
     error = '';
     busy = false;
+    installed = false;
+
+    ngOnInit() {
+        const storedToken = localStorage.getItem(this.tokenStorageKey);
+        if (!storedToken) return;
+
+        this.token = storedToken;
+        void this.run(async () => {
+            await this.refreshInstalledState();
+            this.status = 'Session restored';
+        });
+    }
 
     async register() {
         await this.authCall('register');
@@ -60,25 +75,61 @@ export class HelloPluginWidget {
         await this.authCall('login');
     }
 
-    async installHelloPlugin() {
+    async installPlugin() {
         await this.run(async () => {
             await this.ensureToken();
-            this.status = 'Installing hello-plugin...';
+            this.status = 'Installing plugin...';
+
+            let install: any;
+
+            try {
+                install = await this.send(
+                    this.http.post<any>(
+                        `${this.apiBase}/api/plugins/${this.pluginId}/install`,
+                        { grantedPermissions: [] },
+                        { headers: this.authHeaders() }
+                    )
+                );
+            } catch (e: any) {
+                const msg = this.errorMessage(e);
+
+                if (this.isTransientInstallError(msg)) {
+                    this.status = 'Install retrying after transient startup error...';
+                    await this.sleep(2000);
+                    install = await this.send(
+                        this.http.post<any>(
+                            `${this.apiBase}/api/plugins/${this.pluginId}/install`,
+                            { grantedPermissions: [] },
+                            { headers: this.authHeaders() }
+                        )
+                    );
+                } else if (msg.toLowerCase().includes('already installed')) {
+                    this.installed = true;
+                    this.status = 'Already installed';
+                    this.error = '';
+                    return;
+                } else {
+                    throw e;
+                }
+            }
+
+            this.status = `Installed (${install.state})`;
+            this.installed = true;
+            this.error = '';
+        });
+    }
+
+    async uninstallPlugin() {
+        await this.run(async () => {
+            await this.ensureToken();
+            this.status = 'Uninstalling hello-plugin...';
             await this.send(
-                this.http.delete(`${this.apiBase}/api/plugins/hello-plugin`, {
+                this.http.delete(`${this.apiBase}/api/plugins/${this.pluginId}`, {
                     headers: this.authHeaders()
                 })
             );
-
-            const install = await this.send(
-                this.http.post<any>(
-                    `${this.apiBase}/api/plugins/hello-plugin/install`,
-                    { grantedPermissions: [] },
-                    { headers: this.authHeaders() }
-                )
-            );
-
-            this.status = `Installed (${install.state})`;
+            this.installed = false;
+            this.status = 'Uninstalled';
             this.error = '';
         });
     }
@@ -87,7 +138,7 @@ export class HelloPluginWidget {
         await this.run(async () => {
             await this.ensureToken();
             const res = await this.send(
-                this.http.get<{ message: string }>(`${this.apiBase}/api/p/hello-plugin/greeting`, {
+                this.http.get<{ message: string }>(`${this.apiBase}/api/p/${this.pluginId}/greeting`, {
                     headers: this.authHeaders()
                 })
             );
@@ -107,6 +158,8 @@ export class HelloPluginWidget {
             );
 
             this.token = res.token;
+            localStorage.setItem(this.tokenStorageKey, this.token);
+            await this.refreshInstalledState();
             this.status = kind === 'register' ? 'Registered and logged in' : 'Logged in';
             this.error = '';
         });
@@ -126,17 +179,45 @@ export class HelloPluginWidget {
         return firstValueFrom(obs.pipe(timeout(this.requestTimeoutMs)));
     }
 
+    private async refreshInstalledState() {
+        const list = await this.send(
+            this.http.get<Array<{ pluginId: string }>>(`${this.apiBase}/api/plugins`, {
+                headers: this.authHeaders()
+            })
+        );
+        this.installed = list.some((p) => p.pluginId === this.pluginId);
+    }
+
+    private errorMessage(e: any) {
+        return e?.error?.error ?? e?.message ?? 'Request failed';
+    }
+
+    private isTransientInstallError(msg: string) {
+        const m = msg.toLowerCase();
+        return m.includes('not healthy yet') || m.includes('connection reset by peer') || m.includes('timed out');
+    }
+
+    private sleep(ms: number) {
+        return new Promise<void>((resolve) => setTimeout(resolve, ms));
+    }
+
     private async run(work: () => Promise<void>) {
         this.busy = true;
         this.error = '';
         try {
             await work();
         } catch (e: any) {
-            const msg = e?.error?.error ?? e?.message ?? 'Request failed';
+            const msg = this.errorMessage(e);
+            if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('jwt') || msg.toLowerCase().includes('401')) {
+                this.token = '';
+                localStorage.removeItem(this.tokenStorageKey);
+            }
             this.error = msg;
             this.status = 'Failed';
         } finally {
             this.busy = false;
+            // With zoneless change detection, async promise completion may not auto-refresh.
+            this.cdr.detectChanges();
         }
     }
 }

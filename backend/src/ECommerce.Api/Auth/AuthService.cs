@@ -12,9 +12,11 @@ public interface IAuthService
 {
     Task<AuthResult> RegisterAsync(string email, string password, CancellationToken ct = default);
     Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct = default);
+    Task<SeedUserResult> SeedUserAsync(string email, string password, CancellationToken ct = default);
 }
 
 public sealed record AuthResult(bool Success, string? Token, string? Error, DateTime? ExpiresAt);
+public sealed record SeedUserResult(bool Seeded, string Email, string Message);
 
 public sealed class AuthService : IAuthService
 {
@@ -51,6 +53,24 @@ public sealed class AuthService : IAuthService
             return new AuthResult(false, null, "Invalid credentials", null);
 
         return IssueToken(user);
+    }
+
+    public async Task<SeedUserResult> SeedUserAsync(string email, string password, CancellationToken ct = default)
+    {
+        email = email.Trim().ToLowerInvariant();
+        var existingUser = await _db.Users.AnyAsync(u => u.Email == email, ct);
+        if (existingUser)
+            return new SeedUserResult(false, email, "User already exists");
+
+        var user = new User
+        {
+            Email = email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync(ct);
+        return new SeedUserResult(true, email, "User created");
     }
 
     private AuthResult IssueToken(User user)

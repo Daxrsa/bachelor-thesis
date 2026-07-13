@@ -1,6 +1,17 @@
 name: ecommerce
 
 services:
+  registry:
+    image: registry:2
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - core
+
   db:
     image: postgres:16-alpine
     environment:
@@ -49,3 +60,4 @@ networks:
 
 volumes:
   db-data:
+  registry-data:

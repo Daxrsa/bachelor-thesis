@@ -5,13 +5,14 @@ import { Documentation } from './app/pages/documentation/documentation';
 import { Landing } from './app/pages/landing/landing';
 import { Notfound } from './app/pages/notfound/notfound';
 import { PluginCatalog } from './app/pages/plugin-catalog/plugin-catalog';
+import { authGuard } from './app/auth.guard';
 
 export const appRoutes: Routes = [
     {
         path: '',
         component: AppLayout,
         children: [
-            { path: '', component: Dashboard },
+            { path: '', component: Dashboard, canActivate: [authGuard] },
             { path: 'plugin-catalog', component: PluginCatalog },
             { path: 'uikit', loadChildren: () => import('./app/pages/uikit/uikit.routes') },
             { path: 'documentation', component: Documentation },

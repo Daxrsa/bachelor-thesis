@@ -39,7 +39,22 @@ cd backend/plugins/hello-plugin
 docker build -t ecommerce/hello-plugin:0.1.0 .
 ```
 
-### 2. Start Postgres + the core API
+### 2. Start local Docker registry, tag and push plugin image
+
+```bash
+cd ../../..   # repo root
+docker compose up -d registry
+docker tag ecommerce/hello-plugin:0.1.0 localhost:5000/ecommerce/hello-plugin:0.1.0
+docker push localhost:5000/ecommerce/hello-plugin:0.1.0
+```
+
+Quick check:
+
+```bash
+curl http://localhost:5000/v2/_catalog
+```
+
+### 3. Start Postgres + the core API
 
 ```bash
 cd ../../..   # repo root
@@ -48,7 +63,9 @@ docker compose up --build
 
 The API is now on <http://localhost:8080>, Swagger at <http://localhost:8080/swagger>.
 
-### 3. Run the Angular client
+The local registry is on <http://localhost:5000>.
+
+### 4. Run the Angular client
 
 ```bash
 cd webclient
@@ -75,7 +92,7 @@ is what the marketplace catalog exposes:
   "version": "0.1.0",
   "description": "…",
   "publisher": "example",
-  "image": "ecommerce/hello-plugin:0.1.0",
+  "image": "localhost:5000/ecommerce/hello-plugin:0.1.0",
   "containerPort": 8080,
   "healthEndpoint": "/health",
   "hostApi": "^1.0.0",
