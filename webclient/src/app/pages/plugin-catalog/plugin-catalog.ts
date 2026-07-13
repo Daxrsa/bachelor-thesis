@@ -1,15 +1,190 @@
-import { Component } from '@angular/core';
-import { HelloPluginWidget } from './hello-plugin-widget';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
+import { firstValueFrom, Observable, timeout } from 'rxjs';
+import { ButtonModule } from 'primeng/button';
+
+interface MarketplaceEntry {
+    manifest: {
+        id: string;
+        name: string;
+        version: string;
+        description: string;
+        publisher: string;
+    };
+    installed: boolean;
+}
 
 @Component({
     selector: 'app-plugin-catalog',
     standalone: true,
-    imports: [HelloPluginWidget],
-    template: ` <div class="card">
-        <div class="font-semibold text-xl mb-4">Plugin Catalog</div>
-        <p>hello plugin catalog</p>
-    </div>
+    imports: [CommonModule, ButtonModule],
+    template: `
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <div class="font-semibold text-xl">Plugin Catalog</div>
+                <p-button label="Refresh" icon="pi pi-refresh" [loading]="loading" (onClick)="load()" severity="secondary" />
+            </div>
 
-    <app-hello-plugin-widget />`
+            <div *ngIf="error" class="text-red-500 mb-4"><b>Error:</b> {{ error }}</div>
+
+            <div class="mb-6">
+                <div class="font-semibold text-lg mb-3">Installed ({{ installed.length }})</div>
+                <div *ngIf="!loading && installed.length === 0" class="text-muted-color">No plugins installed.</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div *ngFor="let entry of installed" class="p-4 border rounded-lg surface-border flex flex-col gap-3">
+                        <div>
+                            <div class="font-semibold">{{ entry.manifest.name }}</div>
+                            <div class="text-sm text-muted-color mb-2">v{{ entry.manifest.version }} · {{ entry.manifest.publisher }}</div>
+                            <p class="text-sm">{{ entry.manifest.description }}</p>
+                        </div>
+
+                        <div *ngIf="entry.manifest.id === 'hello-plugin' && greeting" class="text-sm">
+                            <b>Greeting:</b> {{ greeting }}
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 mt-auto">
+                            <p-button
+                                *ngIf="entry.manifest.id === 'hello-plugin'"
+                                label="Call Greeting"
+                                icon="pi pi-comment"
+                                severity="contrast"
+                                [loading]="busyPluginId === entry.manifest.id"
+                                (onClick)="callGreeting(entry.manifest.id)"
+                            />
+                            <p-button
+                                label="Uninstall"
+                                icon="pi pi-trash"
+                                severity="danger"
+                                [loading]="busyPluginId === entry.manifest.id"
+                                (onClick)="uninstall(entry.manifest.id)"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="font-semibold text-lg mb-3">Not Installed ({{ notInstalled.length }})</div>
+                <div *ngIf="!loading && notInstalled.length === 0" class="text-muted-color">No available plugins.</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div *ngFor="let entry of notInstalled" class="p-4 border rounded-lg surface-border flex flex-col gap-3">
+                        <div>
+                            <div class="font-semibold">{{ entry.manifest.name }}</div>
+                            <div class="text-sm text-muted-color mb-2">v{{ entry.manifest.version }} · {{ entry.manifest.publisher }}</div>
+                            <p class="text-sm">{{ entry.manifest.description }}</p>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 mt-auto">
+                            <p-button
+                                label="Install"
+                                icon="pi pi-download"
+                                severity="success"
+                                [loading]="busyPluginId === entry.manifest.id"
+                                (onClick)="install(entry.manifest.id)"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `
 })
-export class PluginCatalog {}
+export class PluginCatalog implements OnInit {
+    private readonly http = inject(HttpClient);
+    private readonly cdr = inject(ChangeDetectorRef);
+    private readonly apiBase = 'http://localhost:8080';
+    private readonly tokenStorageKey = 'ecommerce.token';
+    private readonly requestTimeoutMs = 45000;
+
+    entries: MarketplaceEntry[] = [];
+    loading = false;
+    error = '';
+    busyPluginId = '';
+    greeting = '';
+
+    get installed(): MarketplaceEntry[] {
+        return this.entries.filter((e) => e.installed);
+    }
+
+    get notInstalled(): MarketplaceEntry[] {
+        return this.entries.filter((e) => !e.installed);
+    }
+
+    ngOnInit() {
+        void this.load();
+    }
+
+    async load() {
+        this.loading = true;
+        this.error = '';
+        try {
+            this.entries = await this.send(
+                this.http.get<MarketplaceEntry[]>(`${this.apiBase}/api/plugins/marketplace`, { headers: this.authHeaders() })
+            );
+        } catch (e: any) {
+            this.error = this.errorMessage(e);
+        } finally {
+            this.loading = false;
+            this.cdr.detectChanges();
+        }
+    }
+
+    async install(pluginId: string) {
+        await this.run(pluginId, async () => {
+            await this.send(
+                this.http.post(
+                    `${this.apiBase}/api/plugins/${pluginId}/install`,
+                    { grantedPermissions: [] },
+                    { headers: this.authHeaders() }
+                )
+            );
+            await this.load();
+        });
+    }
+
+    async uninstall(pluginId: string) {
+        await this.run(pluginId, async () => {
+            await this.send(
+                this.http.delete(`${this.apiBase}/api/plugins/${pluginId}`, { headers: this.authHeaders() })
+            );
+            if (pluginId === 'hello-plugin') this.greeting = '';
+            await this.load();
+        });
+    }
+
+    async callGreeting(pluginId: string) {
+        await this.run(pluginId, async () => {
+            const res = await this.send(
+                this.http.get<{ message: string }>(`${this.apiBase}/api/p/${pluginId}/greeting`, { headers: this.authHeaders() })
+            );
+            this.greeting = res.message;
+        });
+    }
+
+    private async run(pluginId: string, work: () => Promise<void>) {
+        this.busyPluginId = pluginId;
+        this.error = '';
+        try {
+            await work();
+        } catch (e: any) {
+            this.error = this.errorMessage(e);
+        } finally {
+            this.busyPluginId = '';
+            this.cdr.detectChanges();
+        }
+    }
+
+    private send<T>(obs: Observable<T>) {
+        return firstValueFrom(obs.pipe(timeout(this.requestTimeoutMs)));
+    }
+
+    private authHeaders(): HttpHeaders {
+        const token = localStorage.getItem(this.tokenStorageKey) ?? '';
+        return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
+    }
+
+    private errorMessage(e: any): string {
+        return e?.error?.error ?? e?.message ?? 'Request failed';
+    }
+}

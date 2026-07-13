@@ -24,13 +24,13 @@ export class AppMenu {
     ngOnInit() {
         this.model = [
             {
-                label: 'Home',
+                label: 'Administration',
                 items: [
                     { label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/'] },
                     { label: 'Plugin Catalog', icon: 'pi pi-fw pi-box', routerLink: ['/plugin-catalog'] }
                 ]
             },
-            {
+            /* {
                 label: 'UI Components',
                 items: [
                     { label: 'Form Layout', icon: 'pi pi-fw pi-id-card', routerLink: ['/uikit/formlayout'] },
@@ -49,8 +49,8 @@ export class AppMenu {
                     { label: 'Timeline', icon: 'pi pi-fw pi-calendar', routerLink: ['/uikit/timeline'] },
                     { label: 'Misc', icon: 'pi pi-fw pi-circle', routerLink: ['/uikit/misc'] }
                 ]
-            },
-            {
+            }, */
+            /* {
                 label: 'Pages',
                 icon: 'pi pi-fw pi-briefcase',
                 path: '/pages',
@@ -98,8 +98,8 @@ export class AppMenu {
                         routerLink: ['/pages/empty']
                     }
                 ]
-            },
-            {
+            }, */
+            /* {
                 label: 'Hierarchy',
                 path: '/hierarchy',
                 items: [
@@ -149,8 +149,8 @@ export class AppMenu {
                         ]
                     }
                 ]
-            },
-            {
+            }, */
+            /* {
                 label: 'Get Started',
                 items: [
                     {
@@ -165,7 +165,7 @@ export class AppMenu {
                         target: '_blank'
                     }
                 ]
-            }
+            } */
         ];
     }
 }
