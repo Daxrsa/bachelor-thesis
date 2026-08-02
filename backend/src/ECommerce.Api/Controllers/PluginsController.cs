@@ -7,11 +7,9 @@ namespace ECommerce.Api.Controllers;
 [ApiController]
 [Route("api/plugins")]
 [Authorize]
-public sealed class PluginsController : ControllerBase
+public sealed class PluginsController(IPluginService svc) : ControllerBase
 {
-    private readonly IPluginService _svc;
-
-    public PluginsController(IPluginService svc) => _svc = svc;
+    private readonly IPluginService _svc = svc;
 
     public sealed record InstallRequest(IReadOnlyList<string> GrantedPermissions);
 

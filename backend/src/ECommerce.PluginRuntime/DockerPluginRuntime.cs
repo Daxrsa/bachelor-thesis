@@ -32,6 +32,7 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         var coreRunsInContainer = File.Exists("/.dockerenv");
 
         await EnsureNetworkAsync(ct);
+        var databaseEndpoint = await StartDatabaseIfNeededAsync(manifest, ct);
         await EnsureImageAsync(manifest.Image, ct);
         await RemoveIfExistsAsync(containerName, ct);
 
@@ -61,6 +62,7 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
                 ["ecommerce.plugin.version"] = manifest.Version
             },
             HostConfig = hostConfig,
+            Env = BuildPluginEnvironment(manifest, databaseEndpoint),
             ExposedPorts = new Dictionary<string, EmptyStruct>
             {
                 [internalPort] = default
@@ -82,6 +84,7 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
     {
         var name = _opts.ContainerPrefix + pluginId;
         await RemoveIfExistsAsync(name, ct);
+        await RemoveIfExistsAsync(GetDatabaseContainerName(pluginId), ct);
     }
 
     public async Task<bool> IsRunningAsync(string pluginId, CancellationToken ct = default)
@@ -95,7 +98,7 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
                 ["name"] = new Dictionary<string, bool> { [name] = true }
             }
         }, ct);
-        return list.Any(c => string.Equals(c.State, "running", StringComparison.OrdinalIgnoreCase));
+        return list.Any(c => HasExactName(c, name) && string.Equals(c.State, "running", StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task EnsureNetworkAsync(CancellationToken ct)
@@ -137,6 +140,74 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         }
     }
 
+    private async Task<(string Host, int Port, PluginDatabaseManifest Database)?> StartDatabaseIfNeededAsync(
+        PluginManifest manifest,
+        CancellationToken ct)
+    {
+        if (manifest.Database is null)
+            return null;
+
+        var database = manifest.Database;
+        if (!string.Equals(database.Engine, "postgres", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Plugin database engine '{database.Engine}' is not supported");
+
+        var containerName = GetDatabaseContainerName(manifest.Id);
+        var volumeName = GetDatabaseVolumeName(manifest.Id);
+
+        await EnsureImageAsync(database.Image, ct);
+        await RemoveIfExistsAsync(containerName, ct);
+
+        var create = await _docker.Containers.CreateContainerAsync(new CreateContainerParameters
+        {
+            Image = database.Image,
+            Name = containerName,
+            Labels = new Dictionary<string, string>
+            {
+                ["ecommerce.plugin.id"] = manifest.Id,
+                ["ecommerce.plugin.role"] = "database"
+            },
+            Env = new List<string>
+            {
+                $"POSTGRES_DB={database.DatabaseName}",
+                $"POSTGRES_USER={database.Username}",
+                $"POSTGRES_PASSWORD={database.Password}"
+            },
+            HostConfig = new HostConfig
+            {
+                NetworkMode = _opts.Network,
+                RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
+                Binds = new List<string> { $"{volumeName}:{database.VolumeMountPath}" }
+            }
+        }, ct);
+
+        var started = await _docker.Containers.StartContainerAsync(create.ID, new ContainerStartParameters(), ct);
+        if (!started)
+            throw new InvalidOperationException($"Failed to start database container for plugin {manifest.Id}");
+
+        return (containerName, database.Port, database);
+    }
+
+    private static IList<string>? BuildPluginEnvironment(
+        PluginManifest manifest,
+        (string Host, int Port, PluginDatabaseManifest Database)? databaseEndpoint)
+    {
+        if (databaseEndpoint is null)
+            return null;
+
+        var (host, port, database) = databaseEndpoint.Value;
+        var connectionString = $"Host={host};Port={port};Database={database.DatabaseName};Username={database.Username};Password={database.Password}";
+
+        return new List<string>
+        {
+            $"ECOMMERCE_PLUGIN_ID={manifest.Id}",
+            $"ConnectionStrings__Default={connectionString}"
+        };
+    }
+
+    private string GetDatabaseContainerName(string pluginId) => $"{_opts.ContainerPrefix}{pluginId}-db";
+
+    private string GetDatabaseVolumeName(string pluginId) => $"{_opts.ContainerPrefix}{pluginId}-data";
+
     private async Task<bool> ImageExistsLocallyAsync(string image, CancellationToken ct)
     {
         var list = await _docker.Images.ListImagesAsync(new ImagesListParameters { All = true }, ct);
@@ -164,12 +235,15 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
             }
         }, ct);
 
-        foreach (var c in list)
+        foreach (var c in list.Where(c => HasExactName(c, containerName)))
         {
             _log.LogInformation("Removing existing container {Name} ({Id})", containerName, c.ID);
             await _docker.Containers.RemoveContainerAsync(c.ID, new ContainerRemoveParameters { Force = true }, ct);
         }
     }
+
+    private static bool HasExactName(ContainerListResponse container, string containerName)
+        => container.Names?.Any(name => string.Equals(name.TrimStart('/'), containerName, StringComparison.Ordinal)) == true;
 
     private async Task<(string Host, int Port)> ResolveReachableEndpointAsync(
         string containerId,

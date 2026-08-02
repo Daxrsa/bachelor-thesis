@@ -39,13 +39,13 @@ interface MarketplaceEntry {
                             <p class="text-sm">{{ entry.manifest.description }}</p>
                         </div>
 
-                        <div *ngIf="entry.manifest.id === 'hello-plugin' && greeting" class="text-sm">
-                            <b>Greeting:</b> {{ greeting }}
+                        <div *ngIf="greetings[entry.manifest.id]" class="text-sm">
+                            <b>Greeting:</b> {{ greetings[entry.manifest.id] }}
                         </div>
 
                         <div class="flex flex-wrap gap-2 mt-auto">
                             <p-button
-                                *ngIf="entry.manifest.id === 'hello-plugin'"
+                                *ngIf="greetingPath(entry.manifest.id)"
                                 label="Call Greeting"
                                 icon="pi pi-comment"
                                 severity="contrast"
@@ -101,7 +101,7 @@ export class PluginCatalog implements OnInit {
     loading = false;
     error = '';
     busyPluginId = '';
-    greeting = '';
+    greetings: Record<string, string> = {};
 
     get installed(): MarketplaceEntry[] {
         return this.entries.filter((e) => e.installed);
@@ -148,18 +148,28 @@ export class PluginCatalog implements OnInit {
             await this.send(
                 this.http.delete(`${this.apiBase}/api/plugins/${pluginId}`, { headers: this.authHeaders() })
             );
-            if (pluginId === 'hello-plugin') this.greeting = '';
+            delete this.greetings[pluginId];
             await this.load();
         });
     }
 
     async callGreeting(pluginId: string) {
+        const path = this.greetingPath(pluginId);
+        if (!path) return;
+
         await this.run(pluginId, async () => {
             const res = await this.send(
-                this.http.get<{ message: string }>(`${this.apiBase}/api/p/${pluginId}/greeting`, { headers: this.authHeaders() })
+                this.http.get<{ message: string }>(`${this.apiBase}/api/p/${pluginId}/${path}`, { headers: this.authHeaders() })
             );
-            this.greeting = res.message;
+            this.greetings[pluginId] = res.message;
         });
+    }
+
+    greetingPath(pluginId: string): string | null {
+        return {
+            'hello-plugin': 'greeting',
+            'products-plugin': 'products/greeting'
+        }[pluginId] ?? null;
     }
 
     private async run(pluginId: string, work: () => Promise<void>) {

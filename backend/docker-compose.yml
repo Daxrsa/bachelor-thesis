@@ -1,6 +1,46 @@
 name: ecommerce
 
 services:
+  hello-plugin-image:
+    profiles:
+      - plugin-images
+    build:
+      context: ./plugins/hello-plugin
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+        WORKDIR /src
+        COPY HelloPlugin.csproj ./
+        RUN dotnet restore
+        COPY . .
+        RUN dotnet publish -c Release -o /out
+
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0
+        WORKDIR /app
+        COPY --from=build /out ./
+        EXPOSE 8080
+        ENTRYPOINT ["dotnet", "HelloPlugin.dll"]
+    image: localhost:5000/ecommerce/hello-plugin:0.1.0
+
+  products-plugin-image:
+    profiles:
+      - plugin-images
+    build:
+      context: ./plugins/products-plugin
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+        WORKDIR /src
+        COPY ProductsPlugin.csproj ./
+        RUN dotnet restore
+        COPY . .
+        RUN dotnet publish -c Release -o /out
+
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0
+        WORKDIR /app
+        COPY --from=build /out ./
+        EXPOSE 8080
+        ENTRYPOINT ["dotnet", "ProductsPlugin.dll"]
+    image: localhost:5000/ecommerce/products-plugin:0.1.0
+
   registry:
     image: registry:2
     environment:
@@ -31,7 +71,7 @@ services:
 
   api:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     depends_on:
       db:
@@ -45,7 +85,6 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Grant the API access to the host Docker daemon so it can spawn plugin containers.
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - core
@@ -55,7 +94,6 @@ networks:
   core:
     name: ecommerce_core
   plugins:
-    # The API attaches plugin containers to this network so it can reach them by container name.
     name: ecommerce_plugins
 
 volumes:

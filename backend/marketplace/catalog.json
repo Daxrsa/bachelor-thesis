@@ -11,5 +11,27 @@
     "hostApi": "^1.0.0",
     "permissions": [],
     "uiExtensions": {}
+  },
+  {
+    "id": "products-plugin",
+    "name": "Products Plugin",
+    "version": "0.1.0",
+    "description": "Owns product storage, catalog listing, and product detail retrieval for the storefront.",
+    "publisher": "example",
+    "image": "localhost:5000/ecommerce/products-plugin:0.1.0",
+    "containerPort": 8080,
+    "healthEndpoint": "/health",
+    "hostApi": "^1.0.0",
+    "permissions": [],
+    "database": {
+      "engine": "postgres",
+      "image": "postgres:16-alpine",
+      "databaseName": "products",
+      "username": "products",
+      "password": "products",
+      "port": 5432,
+      "volumeMountPath": "/var/lib/postgresql/data"
+    },
+    "uiExtensions": {}
   }
 ]

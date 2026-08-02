@@ -28,24 +28,17 @@ a shared network, and proxies HTTP traffic to them under `/api/p/{pluginId}/…`
 | `backend/plugins/hello-plugin/` | Sample containerized plugin |
 | `backend/marketplace/catalog.json` | Static marketplace catalog (replace with a real registry later) |
 | `webclient/` | Angular 21 (PrimeNG Sakai) SPA with auth + marketplace pages |
-| `docker-compose.yml` | Postgres + core API (mounts Docker socket) |
+| `backend/docker-compose.yml` | All Docker services and plugin image builds |
 
 ## Quick start
 
-### 1. Build the sample plugin image (once)
+### 1. Build and publish plugin images
 
 ```bash
-cd backend/plugins/hello-plugin
-docker build -t ecommerce/hello-plugin:0.1.0 .
-```
-
-### 2. Start local Docker registry, tag and push plugin image
-
-```bash
-cd ../../..   # repo root
+cd backend
 docker compose up -d registry
-docker tag ecommerce/hello-plugin:0.1.0 localhost:5000/ecommerce/hello-plugin:0.1.0
-docker push localhost:5000/ecommerce/hello-plugin:0.1.0
+docker compose --profile plugin-images build hello-plugin-image products-plugin-image
+docker compose --profile plugin-images push hello-plugin-image products-plugin-image
 ```
 
 Quick check:
@@ -54,10 +47,9 @@ Quick check:
 curl http://localhost:5000/v2/_catalog
 ```
 
-### 3. Start Postgres + the core API
+### 2. Start Postgres + the core API
 
 ```bash
-cd ../../..   # repo root
 docker compose up --build
 ```
 
@@ -65,10 +57,10 @@ The API is now on <http://localhost:8080>, Swagger at <http://localhost:8080/swa
 
 The local registry is on <http://localhost:5000>.
 
-### 4. Run the Angular client
+### 3. Run the Angular client
 
 ```bash
-cd webclient
+cd ../webclient
 npm install
 npm start
 ```

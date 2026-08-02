@@ -27,7 +27,25 @@ public sealed class PluginManifest
     /// <summary>Capability strings the plugin requests. The user must approve them at install time.</summary>
     public IReadOnlyList<string> Permissions { get; init; } = Array.Empty<string>();
 
+    /// <summary>Optional database sidecar owned by this plugin.</summary>
+    public PluginDatabaseManifest? Database { get; init; }
+
     /// <summary>Optional UI extension points (slot => remote entry URL) surfaced to the Angular shell.</summary>
     public IReadOnlyDictionary<string, string> UiExtensions { get; init; } =
         new Dictionary<string, string>();
+}
+
+public sealed class PluginDatabaseManifest
+{
+    /// <summary>Database engine. Currently only "postgres" is supported by the Docker runtime.</summary>
+    public string Engine { get; init; } = "postgres";
+
+    /// <summary>Docker image used for the plugin-owned database sidecar.</summary>
+    public string Image { get; init; } = "postgres:16-alpine";
+
+    public string DatabaseName { get; init; } = "plugin";
+    public string Username { get; init; } = "plugin";
+    public string Password { get; init; } = "plugin";
+    public int Port { get; init; } = 5432;
+    public string VolumeMountPath { get; init; } = "/var/lib/postgresql/data";
 }

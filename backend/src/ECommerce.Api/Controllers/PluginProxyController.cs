@@ -12,16 +12,10 @@ namespace ECommerce.Api.Controllers;
 [ApiController]
 [Route("api/p")]
 [Authorize]
-public sealed class PluginProxyController : ControllerBase
+public sealed class PluginProxyController(IPluginService svc, IHttpClientFactory http) : ControllerBase
 {
-    private readonly IPluginService _svc;
-    private readonly IHttpClientFactory _http;
-
-    public PluginProxyController(IPluginService svc, IHttpClientFactory http)
-    {
-        _svc = svc;
-        _http = http;
-    }
+    private readonly IPluginService _svc = svc;
+    private readonly IHttpClientFactory _http = http;
 
     [Route("{pluginId}/{**path}")]
     [HttpGet, HttpPost, HttpPut, HttpDelete, HttpPatch]
