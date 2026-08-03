@@ -1,6 +1,6 @@
 using ProductsPlugin.Domain.Entities;
 
-namespace ProductsPlugin.Application.Contracts;
+namespace ProductsPlugin.Api.Contracts;
 
 public sealed record ProductRequest(
     string? Code,

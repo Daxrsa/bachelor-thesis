@@ -1,0 +1,22 @@
+{
+  "id": "cart-plugin",
+  "name": "Cart Plugin",
+  "version": "0.1.0",
+  "description": "Owns user carts and cart items, with event-oriented add/remove operations.",
+  "publisher": "example",
+  "image": "localhost:5000/ecommerce/cart-plugin:0.1.0",
+  "containerPort": 8080,
+  "healthEndpoint": "/health",
+  "hostApi": "^1.0.0",
+  "permissions": [],
+  "database": {
+    "engine": "postgres",
+    "image": "postgres:16-alpine",
+    "databaseName": "cart",
+    "username": "cart",
+    "password": "cart",
+    "port": 5432,
+    "volumeMountPath": "/var/lib/postgresql/data"
+  },
+  "uiExtensions": {}
+}

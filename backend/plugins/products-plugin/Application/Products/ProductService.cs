@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using ProductsPlugin.Application.Contracts;
+using ProductsPlugin.Api.Contracts;
 using ProductsPlugin.Domain.Entities;
 
 namespace ProductsPlugin.Application.Products;

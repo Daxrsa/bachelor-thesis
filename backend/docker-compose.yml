@@ -41,6 +41,29 @@ services:
         ENTRYPOINT ["dotnet", "ProductsPlugin.dll"]
     image: localhost:5000/ecommerce/products-plugin:0.1.0
 
+  cart-plugin-image:
+    profiles:
+      - plugin-images
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+        WORKDIR /src
+        COPY Directory.Build.props ./
+        COPY plugins/cart-plugin/CartPlugin.csproj plugins/cart-plugin/
+        COPY src/ECommerce.IntegrationContracts/ECommerce.IntegrationContracts.csproj src/ECommerce.IntegrationContracts/
+        RUN dotnet restore plugins/cart-plugin/CartPlugin.csproj
+        COPY plugins/cart-plugin/ plugins/cart-plugin/
+        COPY src/ECommerce.IntegrationContracts/ src/ECommerce.IntegrationContracts/
+        RUN dotnet publish plugins/cart-plugin/CartPlugin.csproj -c Release -o /out
+
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0
+        WORKDIR /app
+        COPY --from=build /out ./
+        EXPOSE 8080
+        ENTRYPOINT ["dotnet", "CartPlugin.dll"]
+    image: localhost:5000/ecommerce/cart-plugin:0.1.0
+
   registry:
     image: registry:2
     environment:
@@ -69,6 +92,23 @@ services:
       interval: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ecommerce
+      RABBITMQ_DEFAULT_PASS: ecommerce
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - core
+      - plugins
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      retries: 10
+
   api:
     build:
       context: .
@@ -76,11 +116,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Host=db;Port=5432;Database=ecommerce;Username=ecommerce;Password=ecommerce"
       PluginRuntime__DockerEndpoint: "unix:///var/run/docker.sock"
       PluginRuntime__Network: "ecommerce_plugins"
+      PluginRuntime__BrokerHost: "rabbitmq"
+      PluginRuntime__BrokerPort: "5672"
+      PluginRuntime__BrokerUsername: "ecommerce"
+      PluginRuntime__BrokerPassword: "ecommerce"
+      PluginRuntime__BrokerVirtualHost: "/"
       Cors__Origins__0: "http://localhost:4200"
     ports:
       - "8080:8080"

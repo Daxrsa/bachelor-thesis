@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 
 interface InventoryStatus {
     label: string;
@@ -21,6 +22,8 @@ export interface Product {
 
 @Injectable()
 export class ProductService {
+    private readonly apiBase = 'http://localhost:8080';
+
     getProductsData() {
         return [
             {
@@ -1265,6 +1268,10 @@ export class ProductService {
         return Promise.resolve(this.getProductsData().slice(0, 10));
     }
 
+    getStoreProducts() {
+        return firstValueFrom(this.http.get<Product[]>(`${this.apiBase}/api/p/products-plugin/products`));
+    }
+
     getProducts() {
         return Promise.resolve(this.getProductsData());
     }
@@ -1319,4 +1326,5 @@ export class ProductService {
     generateRating() {
         return Math.floor(Math.random() * Math.floor(5) + 1);
     }
+
 }

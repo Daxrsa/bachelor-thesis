@@ -13,4 +13,19 @@ public sealed class PluginRuntimeOptions
 
     /// <summary>How long to wait for the plugin's health endpoint before marking install failed.</summary>
     public TimeSpan HealthTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>RabbitMQ host reachable from plugin containers on the shared plugin network.</summary>
+    public string BrokerHost { get; set; } = "rabbitmq";
+
+    /// <summary>RabbitMQ AMQP port.</summary>
+    public int BrokerPort { get; set; } = 5672;
+
+    /// <summary>RabbitMQ username shared with plugins.</summary>
+    public string BrokerUsername { get; set; } = "ecommerce";
+
+    /// <summary>RabbitMQ password shared with plugins.</summary>
+    public string BrokerPassword { get; set; } = "ecommerce";
+
+    /// <summary>RabbitMQ virtual host used by plugin integration events.</summary>
+    public string BrokerVirtualHost { get; set; } = "/";
 }

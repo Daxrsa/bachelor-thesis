@@ -1,7 +1,6 @@
 import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
-
-const TOKEN_STORAGE_KEY = 'ecommerce.token';
+import { TOKEN_STORAGE_KEY } from './auth/token-storage';
 
 function decodeJwtPayload(token: string): Record<string, any> | null {
     const parts = token.split('.');

@@ -10,6 +10,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { RippleModule } from 'primeng/ripple';
 import { AppFloatingConfigurator } from '../../layout/component/app.floatingconfigurator';
+import { TOKEN_STORAGE_KEY } from '../../auth/token-storage';
 
 @Component({
     selector: 'app-login',
@@ -109,7 +110,6 @@ export class Login {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly apiBase = 'http://localhost:8080';
-    private readonly tokenStorageKey = 'ecommerce.token';
 
     email: string = '';
 
@@ -173,7 +173,7 @@ export class Login {
                 })
             );
 
-            localStorage.setItem(this.tokenStorageKey, response.token);
+            localStorage.setItem(TOKEN_STORAGE_KEY, response.token);
             this.statusMessage = kind === 'register' ? 'Registration successful. You are now signed in.' : 'Signed in successfully.';
 
             const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/';

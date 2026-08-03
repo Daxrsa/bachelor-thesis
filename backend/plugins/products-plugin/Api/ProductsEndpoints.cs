@@ -1,4 +1,4 @@
-using ProductsPlugin.Application.Contracts;
+using ProductsPlugin.Api.Contracts;
 using ProductsPlugin.Application.Products;
 using ProductsPlugin.Infrastructure.Persistence;
 

@@ -28,56 +28,71 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
     public async Task<RunningPlugin> StartAsync(PluginManifest manifest, CancellationToken ct = default)
     {
         var containerName = _opts.ContainerPrefix + manifest.Id;
+        var databaseContainerName = GetDatabaseContainerName(manifest.Id);
         var internalPort = $"{manifest.ContainerPort}/tcp";
         var coreRunsInContainer = File.Exists("/.dockerenv");
+        var databaseStarted = false;
 
-        await EnsureNetworkAsync(ct);
-        var databaseEndpoint = await StartDatabaseIfNeededAsync(manifest, ct);
-        await EnsureImageAsync(manifest.Image, ct);
-        await RemoveIfExistsAsync(containerName, ct);
-
-        var hostConfig = new HostConfig
+        try
         {
-            NetworkMode = _opts.Network,
-            RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped }
-        };
+            await EnsureNetworkAsync(ct);
+            var databaseEndpoint = await StartDatabaseIfNeededAsync(manifest, ct);
+            databaseStarted = databaseEndpoint is not null;
+            await EnsureImageAsync(manifest.Image, ct);
+            await RemoveIfExistsAsync(containerName, ct);
 
-        // When the API runs on the host (dotnet watch), it cannot resolve container DNS names.
-        // Publish a random host port so the API can call plugins via localhost.
-        if (!coreRunsInContainer)
-        {
-            hostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>
+            var hostConfig = new HostConfig
             {
-                [internalPort] = new List<PortBinding> { new() { HostPort = "" } }
+                NetworkMode = _opts.Network,
+                RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped }
             };
-        }
 
-        var create = await _docker.Containers.CreateContainerAsync(new CreateContainerParameters
-        {
-            Image = manifest.Image,
-            Name = containerName,
-            Labels = new Dictionary<string, string>
+            // When the API runs on the host (dotnet watch), it cannot resolve container DNS names.
+            // Publish a random host port so the API can call plugins via localhost.
+            if (!coreRunsInContainer)
             {
-                ["ecommerce.plugin.id"] = manifest.Id,
-                ["ecommerce.plugin.version"] = manifest.Version
-            },
-            HostConfig = hostConfig,
-            Env = BuildPluginEnvironment(manifest, databaseEndpoint),
-            ExposedPorts = new Dictionary<string, EmptyStruct>
-            {
-                [internalPort] = default
+                hostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>
+                {
+                    [internalPort] = new List<PortBinding> { new() { HostPort = "" } }
+                };
             }
-        }, ct);
 
-        var started = await _docker.Containers.StartContainerAsync(create.ID, new ContainerStartParameters(), ct);
-        if (!started)
-            throw new InvalidOperationException($"Failed to start container for plugin {manifest.Id}");
+            var create = await _docker.Containers.CreateContainerAsync(new CreateContainerParameters
+            {
+                Image = manifest.Image,
+                Name = containerName,
+                Labels = new Dictionary<string, string>
+                {
+                    ["ecommerce.plugin.id"] = manifest.Id,
+                    ["ecommerce.plugin.version"] = manifest.Version
+                },
+                HostConfig = hostConfig,
+                Env = BuildPluginEnvironment(manifest, databaseEndpoint),
+                ExposedPorts = new Dictionary<string, EmptyStruct>
+                {
+                    [internalPort] = default
+                }
+            }, ct);
 
-        var resolved = await ResolveReachableEndpointAsync(create.ID, containerName, manifest.ContainerPort, coreRunsInContainer, ct);
+            var started = await _docker.Containers.StartContainerAsync(create.ID, new ContainerStartParameters(), ct);
+            if (!started)
+                throw new InvalidOperationException($"Failed to start container for plugin {manifest.Id}");
 
-        await WaitForHealthyAsync(resolved.Host, resolved.Port, manifest, ct);
+            var resolved = await ResolveReachableEndpointAsync(create.ID, containerName, manifest.ContainerPort, coreRunsInContainer, ct);
 
-        return new RunningPlugin(manifest.Id, containerName, resolved.Host, resolved.Port);
+            await WaitForHealthyAsync(resolved.Host, resolved.Port, manifest, ct);
+
+            return new RunningPlugin(manifest.Id, containerName, resolved.Host, resolved.Port);
+        }
+        catch
+        {
+            if (databaseStarted)
+            {
+                await RemoveIfExistsAsync(databaseContainerName, ct);
+            }
+
+            throw;
+        }
     }
 
     public async Task StopAsync(string pluginId, CancellationToken ct = default)
@@ -187,21 +202,28 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         return (containerName, database.Port, database);
     }
 
-    private static IList<string>? BuildPluginEnvironment(
+    private IList<string> BuildPluginEnvironment(
         PluginManifest manifest,
         (string Host, int Port, PluginDatabaseManifest Database)? databaseEndpoint)
     {
+        var env = new List<string>
+        {
+            $"ECOMMERCE_PLUGIN_ID={manifest.Id}",
+            $"RabbitMq__Host={_opts.BrokerHost}",
+            $"RabbitMq__Port={_opts.BrokerPort}",
+            $"RabbitMq__Username={_opts.BrokerUsername}",
+            $"RabbitMq__Password={_opts.BrokerPassword}",
+            $"RabbitMq__VirtualHost={_opts.BrokerVirtualHost}"
+        };
+
         if (databaseEndpoint is null)
-            return null;
+            return env;
 
         var (host, port, database) = databaseEndpoint.Value;
         var connectionString = $"Host={host};Port={port};Database={database.DatabaseName};Username={database.Username};Password={database.Password}";
 
-        return new List<string>
-        {
-            $"ECOMMERCE_PLUGIN_ID={manifest.Id}",
-            $"ConnectionStrings__Default={connectionString}"
-        };
+        env.Add($"ConnectionStrings__Default={connectionString}");
+        return env;
     }
 
     private string GetDatabaseContainerName(string pluginId) => $"{_opts.ContainerPrefix}{pluginId}-db";

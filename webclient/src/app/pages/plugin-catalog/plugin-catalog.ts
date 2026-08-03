@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { firstValueFrom, Observable, timeout } from 'rxjs';
@@ -94,7 +94,6 @@ export class PluginCatalog implements OnInit {
     private readonly http = inject(HttpClient);
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly apiBase = 'http://localhost:8080';
-    private readonly tokenStorageKey = 'ecommerce.token';
     private readonly requestTimeoutMs = 45000;
 
     entries: MarketplaceEntry[] = [];
@@ -120,7 +119,7 @@ export class PluginCatalog implements OnInit {
         this.error = '';
         try {
             this.entries = await this.send(
-                this.http.get<MarketplaceEntry[]>(`${this.apiBase}/api/plugins/marketplace`, { headers: this.authHeaders() })
+                this.http.get<MarketplaceEntry[]>(`${this.apiBase}/api/plugins/marketplace`)
             );
         } catch (e: any) {
             this.error = this.errorMessage(e);
@@ -135,8 +134,7 @@ export class PluginCatalog implements OnInit {
             await this.send(
                 this.http.post(
                     `${this.apiBase}/api/plugins/${pluginId}/install`,
-                    { grantedPermissions: [] },
-                    { headers: this.authHeaders() }
+                    { grantedPermissions: [] }
                 )
             );
             await this.load();
@@ -146,7 +144,7 @@ export class PluginCatalog implements OnInit {
     async uninstall(pluginId: string) {
         await this.run(pluginId, async () => {
             await this.send(
-                this.http.delete(`${this.apiBase}/api/plugins/${pluginId}`, { headers: this.authHeaders() })
+                this.http.delete(`${this.apiBase}/api/plugins/${pluginId}`)
             );
             delete this.greetings[pluginId];
             await this.load();
@@ -159,7 +157,7 @@ export class PluginCatalog implements OnInit {
 
         await this.run(pluginId, async () => {
             const res = await this.send(
-                this.http.get<{ message: string }>(`${this.apiBase}/api/p/${pluginId}/${path}`, { headers: this.authHeaders() })
+                this.http.get<{ message: string }>(`${this.apiBase}/api/p/${pluginId}/${path}`)
             );
             this.greetings[pluginId] = res.message;
         });
@@ -168,7 +166,8 @@ export class PluginCatalog implements OnInit {
     greetingPath(pluginId: string): string | null {
         return {
             'hello-plugin': 'greeting',
-            'products-plugin': 'products/greeting'
+            'products-plugin': 'products/greeting',
+            'cart-plugin': 'cart/greeting'
         }[pluginId] ?? null;
     }
 
@@ -187,11 +186,6 @@ export class PluginCatalog implements OnInit {
 
     private send<T>(obs: Observable<T>) {
         return firstValueFrom(obs.pipe(timeout(this.requestTimeoutMs)));
-    }
-
-    private authHeaders(): HttpHeaders {
-        const token = localStorage.getItem(this.tokenStorageKey) ?? '';
-        return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
     }
 
     private errorMessage(e: any): string {

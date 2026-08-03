@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { afterNextRender, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DataViewModule } from 'primeng/dataview';
@@ -49,7 +49,7 @@ function createDefaultProductFilters(): ProductFilters {
                     <span class="font-medium">Price</span>
                     <span class="text-sm text-surface-500 dark:text-surface-400">{{ priceRange[0] | currency: 'USD' : 'symbol' : '1.0-0' }} - {{ priceRange[1] | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
                 </div>
-                <p-slider [(ngModel)]="priceRange" [range]="true" [min]="priceBounds[0]" [max]="priceBounds[1]" (ngModelChange)="emitFilters()" styleClass="mt-2"></p-slider>
+                <p-slider [(ngModel)]="priceRange" [range]="true" [min]="priceBounds[0]" [max]="priceBounds[1]" (ngModelChange)="onPriceRangeChange()" styleClass="mt-2"></p-slider>
                 <div class="flex items-center justify-between text-xs text-surface-500 dark:text-surface-400">
                     <span>{{ priceBounds[0] | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
                     <span>{{ priceBounds[1] | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
@@ -79,11 +79,25 @@ export class ProductFilterSidebar implements OnChanges {
 
     selectedAvailability: string[] = PRODUCT_AVAILABILITY_OPTIONS.map((option) => option.value);
 
+    private isSyncingFromInputs = false;
+
     ngOnChanges(changes: SimpleChanges) {
         if (changes['filters'] || changes['priceBounds']) {
+            this.isSyncingFromInputs = true;
             this.priceRange = [...this.filters.priceRange];
             this.selectedAvailability = [...this.filters.availability];
+            queueMicrotask(() => {
+                this.isSyncingFromInputs = false;
+            });
         }
+    }
+
+    onPriceRangeChange() {
+        if (this.isSyncingFromInputs) {
+            return;
+        }
+
+        this.emitFilters();
     }
 
     toggleAvailability(value: string, checked: boolean) {
@@ -249,10 +263,15 @@ export class StoreProducts {
 
     priceBounds: number[] = [0, 0];
 
-    constructor(private productService: ProductService) {}
+    constructor(private productService: ProductService) {
+        afterNextRender(() => {
+            void this.loadProducts();
+        });
+    }
 
-    ngOnInit() {
-        this.productService.getProductsSmall().then((data) => {
+    async loadProducts() {
+        this.productService.getStoreProducts().then((data) => {
+            console.log('Products fetched from API:', data);
             this.products = data;
             this.priceBounds = this.getPriceBounds(data);
             this.filters = { ...this.filters, priceRange: [...this.priceBounds] };
