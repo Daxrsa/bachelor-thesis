@@ -7,6 +7,11 @@ public sealed record AddProductToCartRequest(
     string? CartItemId,
     string? CorrelationId);
 
+public sealed record CheckoutCartRequest(
+    string CurrencyCode,
+    string PaymentMethod,
+    string? CorrelationId);
+
 public sealed record CartResponse(
     string Id,
     string UserId,

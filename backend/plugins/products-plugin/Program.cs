@@ -9,6 +9,7 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 
 builder.Services.AddProductsInfrastructure(connectionString);
 builder.Services.AddProductsApplication();
+builder.Services.AddProductsMessaging(builder.Configuration);
 
 var app = builder.Build();
 

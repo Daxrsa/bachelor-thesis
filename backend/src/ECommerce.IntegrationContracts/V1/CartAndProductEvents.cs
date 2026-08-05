@@ -11,3 +11,24 @@ public sealed record ProductRemovedFromCartEvent(
     int Quantity,
     string ProductId,
     DateTimeOffset RemovedAtUtc);
+
+public sealed record CheckoutLineItem(
+    string ProductId,
+    int Quantity);
+
+public sealed record CartCheckoutRequestedEvent(
+    string UserId,
+    string CurrencyCode,
+    string PaymentMethod,
+    IReadOnlyList<CheckoutLineItem> Items,
+    DateTimeOffset RequestedAtUtc);
+
+public sealed record ProductUpsertedEvent(
+    string ProductId,
+    decimal Price,
+    string CurrencyCode,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record ProductDeletedEvent(
+    string ProductId,
+    DateTimeOffset DeletedAtUtc);

@@ -1,6 +1,8 @@
 using ProductsPlugin.Api.Contracts;
 using ProductsPlugin.Application.Products;
+using ProductsPlugin.Infrastructure.Messaging;
 using ProductsPlugin.Infrastructure.Persistence;
+using ECommerce.IntegrationContracts.V1;
 
 namespace ProductsPlugin.Api;
 
@@ -25,22 +27,92 @@ public static class ProductsEndpoints
             return product is null ? Results.NotFound(new { error = "Product not found" }) : Results.Ok(product);
         });
 
-        app.MapPost("/products", async (ProductRequest request, IProductService service, CancellationToken cancellationToken) =>
+        app.MapPost("/products", async (HttpContext context, ProductRequest request, IProductService service, IProductEventPublisher publisher, CancellationToken cancellationToken) =>
         {
             var product = await service.CreateAsync(request, cancellationToken);
+            var occurredAtUtc = DateTimeOffset.UtcNow;
+            var userId = context.Request.Headers["X-User-Id"].ToString();
+
+            var envelope = new IntegrationEventEnvelope<ProductUpsertedEvent>
+            {
+                EventName = EventNames.ProductUpserted,
+                SchemaVersion = IntegrationSchemaVersions.V1,
+                EventId = Guid.NewGuid(),
+                OccurredAtUtc = occurredAtUtc,
+                CorrelationId = Guid.NewGuid().ToString("N"),
+                CausationId = null,
+                ResourceIds = new EventResourceIds
+                {
+                    ProductId = product.Id,
+                    UserId = string.IsNullOrWhiteSpace(userId) ? null : userId,
+                    CartId = null,
+                    OrderId = null
+                },
+                Payload = new ProductUpsertedEvent(product.Id, product.Price, "USD", occurredAtUtc)
+            };
+
+            await publisher.PublishAsync(envelope, cancellationToken);
             return Results.Created($"/products/{product.Id}", product);
         });
 
-        app.MapPut("/products/{id}", async (string id, ProductRequest request, IProductService service, CancellationToken cancellationToken) =>
+        app.MapPut("/products/{id}", async (HttpContext context, string id, ProductRequest request, IProductService service, IProductEventPublisher publisher, CancellationToken cancellationToken) =>
         {
             var product = await service.UpdateAsync(id, request, cancellationToken);
-            return product is null ? Results.NotFound(new { error = "Product not found" }) : Results.Ok(product);
+            if (product is null)
+                return Results.NotFound(new { error = "Product not found" });
+
+            var occurredAtUtc = DateTimeOffset.UtcNow;
+            var userId = context.Request.Headers["X-User-Id"].ToString();
+            var envelope = new IntegrationEventEnvelope<ProductUpsertedEvent>
+            {
+                EventName = EventNames.ProductUpserted,
+                SchemaVersion = IntegrationSchemaVersions.V1,
+                EventId = Guid.NewGuid(),
+                OccurredAtUtc = occurredAtUtc,
+                CorrelationId = Guid.NewGuid().ToString("N"),
+                CausationId = null,
+                ResourceIds = new EventResourceIds
+                {
+                    ProductId = product.Id,
+                    UserId = string.IsNullOrWhiteSpace(userId) ? null : userId,
+                    CartId = null,
+                    OrderId = null
+                },
+                Payload = new ProductUpsertedEvent(product.Id, product.Price, "USD", occurredAtUtc)
+            };
+
+            await publisher.PublishAsync(envelope, cancellationToken);
+            return Results.Ok(product);
         });
 
-        app.MapDelete("/products/{id}", async (string id, IProductService service, CancellationToken cancellationToken) =>
+        app.MapDelete("/products/{id}", async (HttpContext context, string id, IProductService service, IProductEventPublisher publisher, CancellationToken cancellationToken) =>
         {
             var wasDeleted = await service.DeleteAsync(id, cancellationToken);
-            return wasDeleted ? Results.NoContent() : Results.NotFound(new { error = "Product not found" });
+            if (!wasDeleted)
+                return Results.NotFound(new { error = "Product not found" });
+
+            var occurredAtUtc = DateTimeOffset.UtcNow;
+            var userId = context.Request.Headers["X-User-Id"].ToString();
+            var envelope = new IntegrationEventEnvelope<ProductDeletedEvent>
+            {
+                EventName = EventNames.ProductDeleted,
+                SchemaVersion = IntegrationSchemaVersions.V1,
+                EventId = Guid.NewGuid(),
+                OccurredAtUtc = occurredAtUtc,
+                CorrelationId = Guid.NewGuid().ToString("N"),
+                CausationId = null,
+                ResourceIds = new EventResourceIds
+                {
+                    ProductId = id,
+                    UserId = string.IsNullOrWhiteSpace(userId) ? null : userId,
+                    CartId = null,
+                    OrderId = null
+                },
+                Payload = new ProductDeletedEvent(id, occurredAtUtc)
+            };
+
+            await publisher.PublishAsync(envelope, cancellationToken);
+            return Results.NoContent();
         });
 
         app.MapGet("/products/greeting", (HttpContext ctx) =>

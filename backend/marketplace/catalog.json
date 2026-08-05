@@ -55,5 +55,27 @@
       "volumeMountPath": "/var/lib/postgresql/data"
     },
     "uiExtensions": {}
+  },
+  {
+    "id": "payment-plugin",
+    "name": "Payment Plugin",
+    "version": "0.1.0",
+    "description": "Consumes checkout events, computes totals from product prices, and processes Stripe payments.",
+    "publisher": "example",
+    "image": "localhost:5000/ecommerce/payment-plugin:0.1.0",
+    "containerPort": 8080,
+    "healthEndpoint": "/health",
+    "hostApi": "^1.0.0",
+    "permissions": [],
+    "database": {
+      "engine": "postgres",
+      "image": "postgres:16-alpine",
+      "databaseName": "payment",
+      "username": "payment",
+      "password": "payment",
+      "port": 5432,
+      "volumeMountPath": "/var/lib/postgresql/data"
+    },
+    "uiExtensions": {}
   }
 ]

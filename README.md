@@ -37,8 +37,8 @@ a shared network, and proxies HTTP traffic to them under `/api/p/{pluginId}/…`
 ```bash
 cd backend
 docker compose up -d registry
-docker compose --profile plugin-images build hello-plugin-image products-plugin-image
-docker compose --profile plugin-images push hello-plugin-image products-plugin-image
+docker compose --profile plugin-images build hello-plugin-image products-plugin-image cart-plugin-image payment-plugin-image
+docker compose --profile plugin-images push hello-plugin-image products-plugin-image cart-plugin-image payment-plugin-image
 ```
 
 Quick check:
