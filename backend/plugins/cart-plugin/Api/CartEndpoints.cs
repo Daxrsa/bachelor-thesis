@@ -1,5 +1,6 @@
 using CartPlugin.Application.Carts;
 using CartPlugin.Api.Contracts;
+using CartPlugin.Infrastructure.Messaging;
 using CartPlugin.Infrastructure.Persistence;
 using ECommerce.IntegrationContracts.V1;
 
@@ -23,7 +24,7 @@ public static class CartEndpoints
             return cart is null ? Results.NotFound(new { error = "Cart not found" }) : Results.Ok(cart.ToResponse());
         });
 
-        app.MapPost("/carts/{userId}/items", async (string userId, AddProductToCartRequest request, ICartService service, CancellationToken cancellationToken) =>
+        app.MapPost("/carts/{userId}/items", async (string userId, AddProductToCartRequest request, ICartEventPublisher publisher, CancellationToken cancellationToken) =>
         {
             if (request.Quantity <= 0)
                 return Results.BadRequest(new { error = "Quantity must be greater than 0" });
@@ -50,11 +51,12 @@ public static class CartEndpoints
                     occurredAtUtc)
             };
 
-            var cart = await service.HandleProductAddedToCartEventAsync(envelope, cancellationToken);
-            return Results.Ok(cart.ToResponse());
+            // Publish and return immediately; CartEventsConsumer applies the change asynchronously.
+            await publisher.PublishAsync(envelope, cancellationToken);
+            return Results.Accepted(value: new { eventId = envelope.EventId, status = "queued" });
         });
 
-        app.MapDelete("/carts/{userId}/items/{productId}", async (string userId, string productId, int quantity, string? cartId, string? correlationId, ICartService service, CancellationToken cancellationToken) =>
+        app.MapDelete("/carts/{userId}/items/{productId}", async (string userId, string productId, int quantity, string? cartId, string? correlationId, ICartEventPublisher publisher, CancellationToken cancellationToken) =>
         {
             if (quantity <= 0)
                 return Results.BadRequest(new { error = "Quantity must be greater than 0" });
@@ -81,8 +83,9 @@ public static class CartEndpoints
                     occurredAtUtc)
             };
 
-            var cart = await service.HandleProductRemovedFromCartEventAsync(envelope, cancellationToken);
-            return cart is null ? Results.NotFound(new { error = "Cart not found" }) : Results.Ok(cart.ToResponse());
+            // Publish and return immediately; CartEventsConsumer applies the change asynchronously.
+            await publisher.PublishAsync(envelope, cancellationToken);
+            return Results.Accepted(value: new { eventId = envelope.EventId, status = "queued" });
         });
 
         app.MapGet("/cart/greeting", (HttpContext ctx) =>

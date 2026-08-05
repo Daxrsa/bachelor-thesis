@@ -13,21 +13,17 @@ public interface IAuthService
     Task<AuthResult> RegisterAsync(string email, string password, CancellationToken ct = default);
     Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct = default);
     Task<SeedUserResult> SeedUserAsync(string email, string password, CancellationToken ct = default);
+    Task<CurrentUserResult?> GetCurrentUserAsync(Guid userId, CancellationToken ct = default);
 }
 
 public sealed record AuthResult(bool Success, string? Token, string? Error, DateTime? ExpiresAt);
 public sealed record SeedUserResult(bool Seeded, string Email, string Message);
+public sealed record CurrentUserResult(Guid Id, string Email, string Role);
 
-public sealed class AuthService : IAuthService
+public sealed class AuthService(AppDbContext db, JwtOptions jwt) : IAuthService
 {
-    private readonly AppDbContext _db;
-    private readonly JwtOptions _jwt;
-
-    public AuthService(AppDbContext db, JwtOptions jwt)
-    {
-        _db = db;
-        _jwt = jwt;
-    }
+    private readonly AppDbContext _db = db;
+    private readonly JwtOptions _jwt = jwt;
 
     public async Task<AuthResult> RegisterAsync(string email, string password, CancellationToken ct = default)
     {
@@ -71,6 +67,12 @@ public sealed class AuthService : IAuthService
         _db.Users.Add(user);
         await _db.SaveChangesAsync(ct);
         return new SeedUserResult(true, email, "User created");
+    }
+
+    public async Task<CurrentUserResult?> GetCurrentUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        return user is null ? null : new CurrentUserResult(user.Id, user.Email, user.Role);
     }
 
     private AuthResult IssueToken(User user)

@@ -1,57 +1,60 @@
 using ECommerce.Api.Plugins;
 using ECommerce.Core.Entities;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce.Api.Controllers;
 
 [ApiController]
-[Route("api/p/products-plugin/products")]
+[Route("api/p/cart-plugin/carts")]
 [Authorize]
-[Tags("Products Plugin")]
-public sealed class ProductsPluginController(IPluginService plugins, IHttpClientFactory http) : ControllerBase
+[Tags("Cart Plugin")]
+public sealed class CartPluginController(IPluginService plugins, IHttpClientFactory http) : ControllerBase
 {
-    private const string PluginId = "products-plugin";
+    private const string PluginId = "cart-plugin";
 
     private readonly IPluginService _plugins = plugins;
     private readonly IHttpClientFactory _http = http;
 
-    [HttpGet]
-    [ProducesResponseType(typeof(ProductResponse[]), StatusCodes.Status200OK)]
+    [HttpGet("{userId}")]
+    [EndpointSummary("Get a user's cart")]
+    [EndpointDescription("Returns the current cart and all cart items for the specified user.")]
+    [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task GetProducts([FromQuery] decimal? minPrice, [FromQuery] decimal? maxPrice, [FromQuery] string[]? availability, CancellationToken ct)
-        => await ForwardAsync("products", ct);
+    public async Task GetCart(string userId, CancellationToken ct)
+        => await ForwardAsync($"carts/{userId}", ct);
 
-    [HttpGet("{id}")]
-    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task GetProduct(string id, CancellationToken ct)
-        => await ForwardAsync($"products/{id}", ct);
-
-    [HttpPost]
+    [HttpPost("me/items")]
+    [EndpointSummary("Add an item to the authenticated user's cart")]
+    [EndpointDescription("Adds the requested product and quantity to the cart belonging to the authenticated user.")]
     [Consumes("application/json")]
-    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task CreateProduct([FromBody] ProductRequest request, CancellationToken ct)
-        => await ForwardJsonAsync("products", HttpMethod.Post, request, ct);
+    public async Task AddItem([FromBody] AddProductToCartRequest request, CancellationToken ct)
+    {
+        var userId = GetAuthenticatedUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.WriteAsJsonAsync(new { error = "Authenticated user ID is missing" }, ct);
+            return;
+        }
 
-    [HttpPut("{id}")]
-    [Consumes("application/json")]
-    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task UpdateProduct(string id, [FromBody] ProductRequest request, CancellationToken ct)
-        => await ForwardJsonAsync($"products/{id}", HttpMethod.Put, request, ct);
+        await ForwardJsonAsync($"carts/{userId}/items", HttpMethod.Post, request, ct);
+    }
 
-    [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [HttpDelete("{userId}/items/{productId}")]
+    [EndpointSummary("Remove an item from a user's cart")]
+    [EndpointDescription("Removes the specified product from the specified user's cart.")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task DeleteProduct(string id, CancellationToken ct)
-        => await ForwardAsync($"products/{id}", ct);
+    public async Task RemoveItem(string userId, string productId, CancellationToken ct)
+        => await ForwardAsync($"carts/{userId}/items/{productId}", ct);
 
     private async Task ForwardAsync(string path, CancellationToken ct)
     {
@@ -63,7 +66,7 @@ public sealed class ProductsPluginController(IPluginService plugins, IHttpClient
         await SendAsync(forward, ct);
     }
 
-    private async Task ForwardJsonAsync(string path, HttpMethod method, ProductRequest request, CancellationToken ct)
+    private async Task ForwardJsonAsync(string path, HttpMethod method, AddProductToCartRequest request, CancellationToken ct)
     {
         var target = await ResolveTargetAsync(path, ct);
         if (target is null)
@@ -101,7 +104,7 @@ public sealed class ProductsPluginController(IPluginService plugins, IHttpClient
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            forward.Headers.TryAddWithoutValidation("X-User-Id", User.FindFirst("sub")?.Value ?? "");
+            forward.Headers.TryAddWithoutValidation("X-User-Id", GetAuthenticatedUserId() ?? "");
             forward.Headers.TryAddWithoutValidation("X-User-Email", User.FindFirst("email")?.Value ?? "");
         }
 
@@ -115,27 +118,28 @@ public sealed class ProductsPluginController(IPluginService plugins, IHttpClient
 
         await upstream.Content.CopyToAsync(Response.Body, ct);
     }
+
+    private string? GetAuthenticatedUserId() =>
+        User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
 }
 
-public sealed record ProductRequest(
-    string? Code,
-    string Name,
-    string? Description,
-    decimal Price,
+public sealed record AddProductToCartRequest(
+    string ProductId,
     int Quantity,
-    string InventoryStatus,
-    string? Category,
-    string? Image,
-    int Rating);
+    string? CartId,
+    string? CartItemId,
+    string? CorrelationId);
 
-public sealed record ProductResponse(
+public sealed record CartResponse(
     string Id,
-    string? Code,
-    string Name,
-    string? Description,
-    decimal Price,
+    string UserId,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc,
+    IReadOnlyList<CartItemResponse> Items);
+
+public sealed record CartItemResponse(
+    string Id,
+    string ProductId,
     int Quantity,
-    string InventoryStatus,
-    string? Category,
-    string? Image,
-    int Rating);
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc);

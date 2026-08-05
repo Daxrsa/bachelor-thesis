@@ -9,6 +9,7 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 
 builder.Services.AddCartInfrastructure(connectionString);
 builder.Services.AddCartApplication();
+builder.Services.AddCartMessaging(builder.Configuration);
 
 var app = builder.Build();
 

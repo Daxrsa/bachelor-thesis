@@ -1,6 +1,5 @@
 using CartPlugin.Domain.Entities;
 using ECommerce.IntegrationContracts.V1;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CartPlugin.Application.Carts;
 
