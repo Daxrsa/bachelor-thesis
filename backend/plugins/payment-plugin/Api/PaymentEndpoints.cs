@@ -30,6 +30,16 @@ public static class PaymentEndpoints
             return Results.Ok(payments);
         });
 
+        app.MapGet("/payment/greeting", (HttpContext context) =>
+        {
+            var email = context.Request.Headers["X-User-Email"].ToString();
+            return Results.Ok(new
+            {
+                message = string.IsNullOrWhiteSpace(email) ? "Hello, guest!" : $"Hello, {email}!",
+                from = "payment-plugin"
+            });
+        });
+
         return app;
     }
 }

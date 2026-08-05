@@ -115,6 +115,23 @@ services:
       interval: 5s
       retries: 10
 
+  payment-plugin-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+      POSTGRES_DB: payment
+    ports:
+      - "5434:5432"
+    volumes:
+      - payment-plugin-db-data:/var/lib/postgresql/data
+    networks:
+      - plugins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment"]
+      interval: 5s
+      retries: 10
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     environment:
@@ -168,4 +185,5 @@ networks:
 
 volumes:
   db-data:
+  payment-plugin-db-data:
   registry-data:
