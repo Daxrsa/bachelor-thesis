@@ -14,6 +14,12 @@ public sealed class EfCartRepository(CartsDbContext db) : ICartRepository
     public Task AddAsync(Cart cart, CancellationToken cancellationToken) =>
         db.Carts.AddAsync(cart, cancellationToken).AsTask();
 
+    public Task RemoveAsync(Cart cart, CancellationToken cancellationToken)
+    {
+        db.Carts.Remove(cart);
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         db.SaveChangesAsync(cancellationToken);
 }

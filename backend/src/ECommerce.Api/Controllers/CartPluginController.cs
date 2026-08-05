@@ -17,14 +17,45 @@ public sealed class CartPluginController(IPluginService plugins, IHttpClientFact
     private readonly IPluginService _plugins = plugins;
     private readonly IHttpClientFactory _http = http;
 
-    [HttpGet("{userId}")]
-    [EndpointSummary("Get a user's cart")]
-    [EndpointDescription("Returns the current cart and all cart items for the specified user.")]
+    [HttpGet("me")]
+    [EndpointSummary("Get the authenticated user's cart")]
+    [EndpointDescription("Returns the current cart and all cart items for the authenticated user.")]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task GetCart(string userId, CancellationToken ct)
-        => await ForwardAsync($"carts/{userId}", ct);
+    public async Task GetCart(CancellationToken ct)
+    {
+        var userId = GetAuthenticatedUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.WriteAsJsonAsync(new { error = "Authenticated user ID is missing" }, ct);
+            return;
+        }
+
+        await ForwardAsync($"carts/{userId}", ct);
+    }
+
+    [HttpDelete("me")]
+    [EndpointSummary("Delete the authenticated user's cart")]
+    [EndpointDescription("Deletes the entire cart for the authenticated user if it exists.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task DeleteMyCart(CancellationToken ct)
+    {
+        var userId = GetAuthenticatedUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.WriteAsJsonAsync(new { error = "Authenticated user ID is missing" }, ct);
+            return;
+        }
+
+        await ForwardAsync($"carts/{userId}", ct);
+    }
 
     [HttpPost("me/items")]
     [EndpointSummary("Add an item to the authenticated user's cart")]
@@ -47,14 +78,39 @@ public sealed class CartPluginController(IPluginService plugins, IHttpClientFact
         await ForwardJsonAsync($"carts/{userId}/items", HttpMethod.Post, request, ct);
     }
 
-    [HttpDelete("{userId}/items/{productId}")]
-    [EndpointSummary("Remove an item from a user's cart")]
-    [EndpointDescription("Removes the specified product from the specified user's cart.")]
+    [HttpDelete("me/items/{productId}")]
+    [EndpointSummary("Remove an item from the authenticated user's cart")]
+    [EndpointDescription("Removes the specified product from the cart belonging to the authenticated user.")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task RemoveItem(string userId, string productId, CancellationToken ct)
-        => await ForwardAsync($"carts/{userId}/items/{productId}", ct);
+    public async Task RemoveItem(string productId, [FromQuery] int quantity = 1, [FromQuery] string? cartId = null, [FromQuery] string? correlationId = null, CancellationToken ct = default)
+    {
+        if (quantity <= 0)
+        {
+            Response.StatusCode = StatusCodes.Status400BadRequest;
+            await Response.WriteAsJsonAsync(new { error = "Quantity must be greater than 0" }, ct);
+            return;
+        }
+
+        var userId = GetAuthenticatedUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.WriteAsJsonAsync(new { error = "Authenticated user ID is missing" }, ct);
+            return;
+        }
+
+        var path = $"carts/{userId}/items/{productId}?quantity={quantity}";
+        if (!string.IsNullOrWhiteSpace(cartId))
+            path += $"&cartId={Uri.EscapeDataString(cartId)}";
+        if (!string.IsNullOrWhiteSpace(correlationId))
+            path += $"&correlationId={Uri.EscapeDataString(correlationId)}";
+
+        await ForwardAsync(path, ct);
+    }
 
     private async Task ForwardAsync(string path, CancellationToken ct)
     {

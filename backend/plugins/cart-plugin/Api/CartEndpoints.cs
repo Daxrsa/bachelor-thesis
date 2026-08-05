@@ -24,8 +24,19 @@ public static class CartEndpoints
             return cart is null ? Results.NotFound(new { error = "Cart not found" }) : Results.Ok(cart.ToResponse());
         });
 
+        app.MapDelete("/carts/{userId}", async (string userId, ICartService service, CancellationToken cancellationToken) =>
+        {
+            var deleted = await service.DeleteByUserIdAsync(userId, cancellationToken);
+            return deleted
+                ? Results.NoContent()
+                : Results.NotFound(new { error = "Cart not found" });
+        });
+
         app.MapPost("/carts/{userId}/items", async (string userId, AddProductToCartRequest request, ICartEventPublisher publisher, CancellationToken cancellationToken) =>
         {
+            if (string.IsNullOrWhiteSpace(request.ProductId))
+                return Results.BadRequest(new { error = "ProductId is required" });
+
             if (request.Quantity <= 0)
                 return Results.BadRequest(new { error = "Quantity must be greater than 0" });
 
@@ -48,6 +59,7 @@ public static class CartEndpoints
                 Payload = new ProductAddedToCartEvent(
                     request.CartItemId ?? Guid.NewGuid().ToString("N"),
                     request.Quantity,
+                    request.ProductId,
                     occurredAtUtc)
             };
 
@@ -58,6 +70,9 @@ public static class CartEndpoints
 
         app.MapDelete("/carts/{userId}/items/{productId}", async (string userId, string productId, int quantity, string? cartId, string? correlationId, ICartEventPublisher publisher, CancellationToken cancellationToken) =>
         {
+            if (string.IsNullOrWhiteSpace(productId))
+                return Results.BadRequest(new { error = "ProductId is required" });
+
             if (quantity <= 0)
                 return Results.BadRequest(new { error = "Quantity must be greater than 0" });
 
@@ -80,6 +95,7 @@ public static class CartEndpoints
                 Payload = new ProductRemovedFromCartEvent(
                     $"{userId}:{productId}",
                     quantity,
+                    productId,
                     occurredAtUtc)
             };
 

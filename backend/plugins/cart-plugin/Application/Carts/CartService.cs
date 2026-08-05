@@ -6,6 +6,7 @@ namespace CartPlugin.Application.Carts;
 public interface ICartService
 {
     Task<Cart?> GetByUserIdAsync(string userId, CancellationToken cancellationToken);
+    Task<bool> DeleteByUserIdAsync(string userId, CancellationToken cancellationToken);
     Task<Cart> HandleProductAddedToCartEventAsync(
         IntegrationEventEnvelope<ProductAddedToCartEvent> envelope,
         CancellationToken cancellationToken);
@@ -16,6 +17,20 @@ public interface ICartService
 
 public sealed class CartService(ICartRepository repository) : ICartService
 {
+    public async Task<bool> DeleteByUserIdAsync(string userId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("Delete cart requires a valid userId");
+
+        var cart = await repository.GetByUserIdAsync(userId, cancellationToken);
+        if (cart is null)
+            return false;
+
+        await repository.RemoveAsync(cart, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public Task<Cart?> GetByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         repository.GetByUserIdAsync(userId, cancellationToken);
 
@@ -25,8 +40,9 @@ public sealed class CartService(ICartRepository repository) : ICartService
     {
         var userId = envelope.ResourceIds.UserId
             ?? throw new InvalidOperationException("ProductAddedToCartEvent requires resourceIds.userId");
-        var productId = envelope.ResourceIds.ProductId
-            ?? throw new InvalidOperationException("ProductAddedToCartEvent requires resourceIds.productId");
+        var productId = envelope.ResourceIds.ProductId;
+        if (string.IsNullOrWhiteSpace(productId))
+            throw new InvalidOperationException("ProductAddedToCartEvent requires resourceIds.productId");
 
         var cart = await repository.GetByUserIdAsync(userId, cancellationToken);
         if (cart is null)
@@ -75,8 +91,9 @@ public sealed class CartService(ICartRepository repository) : ICartService
     {
         var userId = envelope.ResourceIds.UserId
             ?? throw new InvalidOperationException("ProductRemovedFromCartEvent requires resourceIds.userId");
-        var productId = envelope.ResourceIds.ProductId
-            ?? throw new InvalidOperationException("ProductRemovedFromCartEvent requires resourceIds.productId");
+        var productId = envelope.ResourceIds.ProductId;
+        if (string.IsNullOrWhiteSpace(productId))
+            throw new InvalidOperationException("ProductRemovedFromCartEvent requires resourceIds.productId");
 
         var cart = await repository.GetByUserIdAsync(userId, cancellationToken);
         if (cart is null)
