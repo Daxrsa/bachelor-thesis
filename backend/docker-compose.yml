@@ -25,14 +25,17 @@ services:
     profiles:
       - plugin-images
     build:
-      context: ./plugins/products-plugin
+      context: .
       dockerfile_inline: |
         FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
         WORKDIR /src
-        COPY ProductsPlugin.csproj ./
-        RUN dotnet restore
-        COPY . .
-        RUN dotnet publish -c Release -o /out
+        COPY Directory.Build.props ./
+        COPY plugins/products-plugin/ProductsPlugin.csproj plugins/products-plugin/
+        COPY src/ECommerce.IntegrationContracts/ECommerce.IntegrationContracts.csproj src/ECommerce.IntegrationContracts/
+        RUN dotnet restore plugins/products-plugin/ProductsPlugin.csproj
+        COPY plugins/products-plugin/ plugins/products-plugin/
+        COPY src/ECommerce.IntegrationContracts/ src/ECommerce.IntegrationContracts/
+        RUN dotnet publish plugins/products-plugin/ProductsPlugin.csproj -c Release -o /out
 
         FROM mcr.microsoft.com/dotnet/aspnet:10.0
         WORKDIR /app
@@ -168,6 +171,7 @@ services:
       PluginRuntime__BrokerUsername: "ecommerce"
       PluginRuntime__BrokerPassword: "ecommerce"
       PluginRuntime__BrokerVirtualHost: "/"
+      PluginRuntime__StripeSecretKey: "${Stripe__SecretKey}"
       Cors__Origins__0: "http://localhost:4200"
     ports:
       - "8080:8080"

@@ -20,6 +20,40 @@ export interface Product {
     rating?: number;
 }
 
+export interface AddProductToCartPayload {
+    productId: string;
+    quantity: number;
+    cartId?: string | null;
+    cartItemId?: string | null;
+    correlationId?: string | null;
+}
+
+export interface CartItemResponse {
+    id: string;
+    productId: string;
+    quantity: number;
+    createdAtUtc: string;
+    updatedAtUtc: string;
+}
+
+export interface CartResponse {
+    id: string;
+    userId: string;
+    createdAtUtc: string;
+    updatedAtUtc: string;
+    items: CartItemResponse[];
+}
+
+export interface ProductsPluginHealthResponse {
+    status: string;
+    plugin: string;
+}
+
+export interface ProductsPluginGreetingResponse {
+    message: string;
+    from: string;
+}
+
 @Injectable()
 export class ProductService {
     private readonly apiBase = 'http://localhost:8080';
@@ -1268,8 +1302,56 @@ export class ProductService {
         return Promise.resolve(this.getProductsData().slice(0, 10));
     }
 
-    getStoreProducts() {
-        return firstValueFrom(this.http.get<Product[]>(`${this.apiBase}/api/p/products-plugin/products`));
+    getStoreProducts(filters?: { minPrice?: number; maxPrice?: number; availability?: string[] }) {
+        const query = new URLSearchParams();
+        if (typeof filters?.minPrice === 'number') query.set('minPrice', String(filters.minPrice));
+        if (typeof filters?.maxPrice === 'number') query.set('maxPrice', String(filters.maxPrice));
+        for (const status of filters?.availability ?? []) {
+            query.append('availability', status);
+        }
+
+        const suffix = query.toString() ? `?${query.toString()}` : '';
+        return firstValueFrom(this.http.get<Product[]>(`${this.apiBase}/api/p/products-plugin/products${suffix}`));
+    }
+
+    getStoreProductById(id: string) {
+        return firstValueFrom(this.http.get<Product>(`${this.apiBase}/api/p/products-plugin/products/${id}`));
+    }
+
+    createStoreProduct(payload: Product) {
+        return firstValueFrom(this.http.post<Product>(`${this.apiBase}/api/p/products-plugin/products`, payload));
+    }
+
+    updateStoreProduct(id: string, payload: Product) {
+        return firstValueFrom(this.http.put<Product>(`${this.apiBase}/api/p/products-plugin/products/${encodeURIComponent(id)}`, payload));
+    }
+
+    deleteStoreProduct(id: string) {
+        return firstValueFrom(this.http.delete<void>(`${this.apiBase}/api/p/products-plugin/products/${encodeURIComponent(id)}`));
+    }
+
+    getProductsPluginHealth() {
+        return firstValueFrom(this.http.get<ProductsPluginHealthResponse>(`${this.apiBase}/api/p/products-plugin/health`));
+    }
+
+    getProductsPluginGreeting() {
+        return firstValueFrom(this.http.get<ProductsPluginGreetingResponse>(`${this.apiBase}/api/p/products-plugin/products/greeting`));
+    }
+
+    addProductToMyCart(payload: AddProductToCartPayload) {
+        return firstValueFrom(this.http.post(`${this.apiBase}/api/p/cart-plugin/carts/me/items`, payload));
+    }
+
+    getMyCart() {
+        return firstValueFrom(this.http.get<CartResponse>(`${this.apiBase}/api/p/cart-plugin/carts/me`));
+    }
+
+    removeProductFromMyCart(productId: string, quantity = 1, cartId?: string | null, correlationId?: string | null) {
+        const query = new URLSearchParams({ quantity: String(quantity) });
+        if (cartId) query.set('cartId', cartId);
+        if (correlationId) query.set('correlationId', correlationId);
+
+        return firstValueFrom(this.http.delete(`${this.apiBase}/api/p/cart-plugin/carts/me/items/${encodeURIComponent(productId)}?${query.toString()}`));
     }
 
     getProducts() {

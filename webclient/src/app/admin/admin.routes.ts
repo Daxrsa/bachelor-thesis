@@ -6,6 +6,7 @@ import { Documentation } from '../pages/documentation/documentation';
 import { Landing } from '../pages/landing/landing';
 import { Notfound } from '../pages/notfound/notfound';
 import { PluginCatalog } from '../pages/plugin-catalog/plugin-catalog';
+import { ProductsPluginDashboard } from '../pages/products-plugin-dashboard/products-plugin-dashboard';
 
 export const adminRoutes: Routes = [
     {
@@ -14,6 +15,7 @@ export const adminRoutes: Routes = [
         children: [
             { path: '', component: Dashboard, canActivate: [authGuard] },
             { path: 'plugin-catalog', component: PluginCatalog, canActivate: [authGuard] },
+            { path: 'plugin-catalog/products-plugin', component: ProductsPluginDashboard, canActivate: [authGuard] },
             { path: 'uikit', loadChildren: () => import('../pages/uikit/uikit.routes') },
             { path: 'documentation', component: Documentation },
             { path: 'pages', loadChildren: () => import('../pages/pages.routes') }

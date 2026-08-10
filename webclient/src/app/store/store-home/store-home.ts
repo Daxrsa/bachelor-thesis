@@ -2,19 +2,15 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { CarouselModule } from 'primeng/carousel';
 import { ChipModule } from 'primeng/chip';
 import { DividerModule } from 'primeng/divider';
 import { GalleriaModule } from 'primeng/galleria';
-import { IconFieldModule } from 'primeng/iconfield';
-import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
 import { RatingModule } from 'primeng/rating';
 import { TagModule } from 'primeng/tag';
-import { ToolbarModule } from 'primeng/toolbar';
 import { Product, ProductService } from '@/app/pages/service/product.service';
 
 interface StoreCategory {
@@ -36,7 +32,6 @@ interface StoreBenefit {
         CommonModule,
         FormsModule,
         RouterModule,
-        ToolbarModule,
         ButtonModule,
         CardModule,
         CarouselModule,
@@ -45,41 +40,11 @@ interface StoreBenefit {
         ChipModule,
         RatingModule,
         DividerModule,
-        InputTextModule,
-        IconFieldModule,
-        InputIconModule,
-        AvatarModule
+        InputTextModule
     ],
     providers: [ProductService],
     template: `
         <div class="w-full max-w-[95rem] mx-auto p-4 md:p-6 xl:p-8 flex flex-col gap-6">
-            <p-toolbar styleClass="rounded-xl shadow-sm">
-                <ng-template #start>
-                    <div class="flex items-center gap-3">
-                        <p-avatar icon="pi pi-bolt" shape="circle" size="large" styleClass="bg-primary text-primary-contrast"></p-avatar>
-                        <div class="flex items-center gap-2">
-                            <p-chip label="NEXTRONICS" icon="pi pi-shop" styleClass="font-semibold"></p-chip>
-                            <p-tag value="Electronics" severity="info"></p-tag>
-                        </div>
-                    </div>
-                </ng-template>
-
-                <ng-template #center>
-                    <p-iconfield>
-                        <p-inputicon class="pi pi-search" />
-                        <input pInputText type="text" placeholder="Search gadgets, laptops, audio..." [(ngModel)]="searchTerm" />
-                    </p-iconfield>
-                </ng-template>
-
-                <ng-template #end>
-                    <div class="flex items-center gap-2">
-                        <p-button label="Products" icon="pi pi-th-large" severity="contrast" [outlined]="true" [routerLink]="['/store/products']"></p-button>
-                        <p-button icon="pi pi-heart" severity="secondary" [text]="true"></p-button>
-                        <p-button icon="pi pi-shopping-cart" badge="3"></p-button>
-                    </div>
-                </ng-template>
-            </p-toolbar>
-
             <p-card styleClass="overflow-hidden">
                 <div class="grid grid-cols-12 gap-6 items-center">
                     <div class="col-span-12 lg:col-span-6 flex flex-col gap-4">
@@ -203,8 +168,6 @@ interface StoreBenefit {
     `
 })
 export class StoreHome implements OnInit {
-    searchTerm = '';
-
     newsletterEmail = '';
 
     featuredProducts: Product[] = [];

@@ -16,12 +16,26 @@ public sealed class ProductsPluginController(IPluginService plugins, IHttpClient
     private readonly IPluginService _plugins = plugins;
     private readonly IHttpClientFactory _http = http;
 
+    [HttpGet("~/api/p/products-plugin/health")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task GetHealth(CancellationToken ct)
+        => await ForwardAsync("health", ct);
+
     [HttpGet]
     [ProducesResponseType(typeof(ProductResponse[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task GetProducts([FromQuery] decimal? minPrice, [FromQuery] decimal? maxPrice, [FromQuery] string[]? availability, CancellationToken ct)
         => await ForwardAsync("products", ct);
+
+    [HttpGet("greeting")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task GetGreeting(CancellationToken ct)
+        => await ForwardAsync("products/greeting", ct);
 
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]

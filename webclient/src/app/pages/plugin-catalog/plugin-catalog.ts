@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { firstValueFrom, Observable, timeout } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 
@@ -34,7 +35,14 @@ interface MarketplaceEntry {
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div *ngFor="let entry of installed" class="p-4 border rounded-lg surface-border flex flex-col gap-3">
                         <div>
-                            <div class="font-semibold">{{ entry.manifest.name }}</div>
+                            <button
+                                type="button"
+                                class="font-semibold text-left hover:underline cursor-pointer"
+                                [disabled]="!dashboardRoute(entry.manifest.id)"
+                                (click)="openPlugin(entry.manifest.id)"
+                            >
+                                {{ entry.manifest.name }}
+                            </button>
                             <div class="text-sm text-muted-color mb-2">v{{ entry.manifest.version }} · {{ entry.manifest.publisher }}</div>
                             <p class="text-sm">{{ entry.manifest.description }}</p>
                         </div>
@@ -70,7 +78,14 @@ interface MarketplaceEntry {
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div *ngFor="let entry of notInstalled" class="p-4 border rounded-lg surface-border flex flex-col gap-3">
                         <div>
-                            <div class="font-semibold">{{ entry.manifest.name }}</div>
+                            <button
+                                type="button"
+                                class="font-semibold text-left hover:underline cursor-pointer"
+                                [disabled]="!dashboardRoute(entry.manifest.id)"
+                                (click)="openPlugin(entry.manifest.id)"
+                            >
+                                {{ entry.manifest.name }}
+                            </button>
                             <div class="text-sm text-muted-color mb-2">v{{ entry.manifest.version }} · {{ entry.manifest.publisher }}</div>
                             <p class="text-sm">{{ entry.manifest.description }}</p>
                         </div>
@@ -93,6 +108,7 @@ interface MarketplaceEntry {
 export class PluginCatalog implements OnInit {
     private readonly http = inject(HttpClient);
     private readonly cdr = inject(ChangeDetectorRef);
+    private readonly router = inject(Router);
     private readonly apiBase = 'http://localhost:8080';
     private readonly requestTimeoutMs = 45000;
 
@@ -170,6 +186,19 @@ export class PluginCatalog implements OnInit {
             'cart-plugin': 'cart/greeting',
             'payment-plugin': 'payment/greeting'
         }[pluginId] ?? null;
+    }
+
+    dashboardRoute(pluginId: string): string | null {
+        return {
+            'products-plugin': '/plugin-catalog/products-plugin'
+        }[pluginId] ?? null;
+    }
+
+    openPlugin(pluginId: string) {
+        const route = this.dashboardRoute(pluginId);
+        if (!route) return;
+
+        void this.router.navigateByUrl(route);
     }
 
     private async run(pluginId: string, work: () => Promise<void>) {

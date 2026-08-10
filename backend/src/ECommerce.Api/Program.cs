@@ -9,6 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Microsoft.OpenApi;
 
+LoadDotEnvIfPresent();
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Configuration ---
@@ -137,3 +139,37 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
+
+static void LoadDotEnvIfPresent()
+{
+    var candidates = new[]
+    {
+        Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+        Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ".env")
+    };
+
+    var envPath = candidates.FirstOrDefault(File.Exists);
+    if (envPath is null)
+        return;
+
+    foreach (var rawLine in File.ReadAllLines(envPath, Encoding.UTF8))
+    {
+        var line = rawLine.Trim();
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+            continue;
+
+        var separatorIndex = line.IndexOf('=');
+        if (separatorIndex <= 0)
+            continue;
+
+        var key = line[..separatorIndex].Trim();
+        var value = line[(separatorIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(key))
+            continue;
+
+        var existing = Environment.GetEnvironmentVariable(key);
+        if (string.IsNullOrEmpty(existing))
+            Environment.SetEnvironmentVariable(key, value);
+    }
+}

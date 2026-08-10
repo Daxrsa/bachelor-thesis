@@ -13,6 +13,7 @@ namespace ECommerce.Api.Controllers;
 public sealed class PaymentPluginController(IPluginService plugins, IHttpClientFactory http) : ControllerBase
 {
 	private const string PluginId = "payment-plugin";
+	private const string CartPluginId = "cart-plugin";
 
 	private readonly IPluginService _plugins = plugins;
 	private readonly IHttpClientFactory _http = http;
@@ -37,9 +38,57 @@ public sealed class PaymentPluginController(IPluginService plugins, IHttpClientF
 		await ForwardAsync("payments/me", ct);
 	}
 
+	[HttpPost("me/pay")]
+	[EndpointSummary("Pay for the authenticated user's cart")]
+	[EndpointDescription("Initiates checkout for the authenticated user's cart. The final payment amount is computed by payment-plugin as sum(quantity * product price).")]
+	[Consumes("application/json")]
+	[ProducesResponseType(StatusCodes.Status202Accepted)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+	public async Task PayMyCart([FromBody] PayCartRequest request, CancellationToken ct)
+	{
+		var userId = GetAuthenticatedUserId();
+		if (string.IsNullOrWhiteSpace(userId))
+		{
+			Response.StatusCode = StatusCodes.Status401Unauthorized;
+			await Response.WriteAsJsonAsync(new { error = "Authenticated user ID is missing" }, ct);
+			return;
+		}
+
+		if (string.IsNullOrWhiteSpace(request.CurrencyCode))
+		{
+			Response.StatusCode = StatusCodes.Status400BadRequest;
+			await Response.WriteAsJsonAsync(new { error = "CurrencyCode is required" }, ct);
+			return;
+		}
+
+		if (string.IsNullOrWhiteSpace(request.PaymentMethod))
+		{
+			Response.StatusCode = StatusCodes.Status400BadRequest;
+			await Response.WriteAsJsonAsync(new { error = "PaymentMethod is required" }, ct);
+			return;
+		}
+
+		var cartTarget = await ResolveTargetAsync(CartPluginId, "carts/me/checkout", ct);
+		if (cartTarget is null)
+			return;
+
+		using var forward = new HttpRequestMessage(HttpMethod.Post, cartTarget)
+		{
+			Content = JsonContent.Create(new CheckoutCartRequest(
+				request.CurrencyCode,
+				request.PaymentMethod,
+				request.CorrelationId))
+		};
+
+		await SendAsync(forward, ct);
+	}
+
 	private async Task ForwardAsync(string path, CancellationToken ct)
 	{
-		var target = await ResolveTargetAsync(path, ct);
+		var target = await ResolveTargetAsync(PluginId, path, ct);
 		if (target is null)
 			return;
 
@@ -47,13 +96,13 @@ public sealed class PaymentPluginController(IPluginService plugins, IHttpClientF
 		await SendAsync(forward, ct);
 	}
 
-	private async Task<string?> ResolveTargetAsync(string path, CancellationToken ct)
+	private async Task<string?> ResolveTargetAsync(string pluginId, string path, CancellationToken ct)
 	{
-		var resolved = await _plugins.ResolveAsync(PluginId, ct);
+		var resolved = await _plugins.ResolveAsync(pluginId, ct);
 		if (resolved is null)
 		{
 			Response.StatusCode = StatusCodes.Status404NotFound;
-			await Response.WriteAsJsonAsync(new { error = "Plugin not installed" }, ct);
+			await Response.WriteAsJsonAsync(new { error = $"Plugin '{pluginId}' not installed" }, ct);
 			return null;
 		}
 
@@ -61,7 +110,7 @@ public sealed class PaymentPluginController(IPluginService plugins, IHttpClientF
 		if (install.State != PluginState.Running)
 		{
 			Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-			await Response.WriteAsJsonAsync(new { error = "Plugin not running", state = install.State.ToString() }, ct);
+			await Response.WriteAsJsonAsync(new { error = $"Plugin '{pluginId}' not running", state = install.State.ToString() }, ct);
 			return null;
 		}
 
@@ -102,3 +151,13 @@ public sealed record PaymentResponse(
 	string? ProviderReference,
 	string? FailureReason,
 	DateTimeOffset CreatedAtUtc);
+
+public sealed record PayCartRequest(
+	string CurrencyCode,
+	string PaymentMethod,
+	string? CorrelationId);
+
+public sealed record CheckoutCartRequest(
+	string CurrencyCode,
+	string PaymentMethod,
+	string? CorrelationId);

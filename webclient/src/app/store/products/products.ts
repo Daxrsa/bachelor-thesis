@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { afterNextRender, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { DataViewModule } from 'primeng/dataview';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -79,21 +80,15 @@ export class ProductFilterSidebar implements OnChanges {
 
     selectedAvailability: string[] = PRODUCT_AVAILABILITY_OPTIONS.map((option) => option.value);
 
-    private isSyncingFromInputs = false;
-
     ngOnChanges(changes: SimpleChanges) {
         if (changes['filters'] || changes['priceBounds']) {
-            this.isSyncingFromInputs = true;
             this.priceRange = [...this.filters.priceRange];
             this.selectedAvailability = [...this.filters.availability];
-            queueMicrotask(() => {
-                this.isSyncingFromInputs = false;
-            });
         }
     }
 
     onPriceRangeChange() {
-        if (this.isSyncingFromInputs) {
+        if (this.areRangesEqual(this.priceRange, this.filters.priceRange)) {
             return;
         }
 
@@ -117,12 +112,16 @@ export class ProductFilterSidebar implements OnChanges {
             availability: [...this.selectedAvailability]
         });
     }
+
+    private areRangesEqual(left: number[], right: number[]) {
+        return left.length === right.length && left.every((value, index) => value === right[index]);
+    }
 }
 
 @Component({
     selector: 'app-store-products',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, DataViewModule, SelectButtonModule, TagModule, ProductFilterSidebar],
+    imports: [CommonModule, FormsModule, RouterModule, ButtonModule, DataViewModule, SelectButtonModule, TagModule, ProductFilterSidebar],
     providers: [ProductService],
     template: `
         <div class="p-4 md:p-6 xl:p-8">
@@ -132,7 +131,11 @@ export class ProductFilterSidebar implements OnChanges {
                         <p class="text-surface-500 dark:text-surface-400 uppercase tracking-wide text-xs">Store</p>
                         <h1 class="text-3xl md:text-4xl font-semibold m-0">Products</h1>
                     </div>
-                    <p class="m-0 text-surface-600 dark:text-surface-300">{{ filteredProducts.length }} items</p>
+                    <p class="m-0 text-surface-600 dark:text-surface-300">{{ loading ? 'Loading...' : filteredProducts.length + ' items' }}</p>
+                </div>
+
+                <div *ngIf="error" class="card border border-red-300 text-red-600 mb-6">
+                    <b>Error:</b> {{ error }}
                 </div>
 
                 <div class="grid grid-cols-12 gap-6 items-start">
@@ -189,7 +192,13 @@ export class ProductFilterSidebar implements OnChanges {
                                                         <span class="text-xl font-semibold">$ {{ item.price }}</span>
                                                         <div class="flex flex-row-reverse md:flex-row gap-2">
                                                             <p-button icon="pi pi-heart" styleClass="h-full" [outlined]="true"></p-button>
-                                                            <p-button icon="pi pi-shopping-cart" label="Buy Now" [disabled]="item.inventoryStatus === 'OUTOFSTOCK'" styleClass="flex-auto md:flex-initial whitespace-nowrap"></p-button>
+                                                            <p-button
+                                                                icon="pi pi-shopping-cart"
+                                                                label="Buy Now"
+                                                                [disabled]="item.inventoryStatus === 'OUTOFSTOCK' || !item.id"
+                                                                [routerLink]="item.id ? ['/store/products', item.id] : null"
+                                                                styleClass="flex-auto md:flex-initial whitespace-nowrap"
+                                                            ></p-button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -233,7 +242,14 @@ export class ProductFilterSidebar implements OnChanges {
                                                     <div class="flex flex-col gap-6 mt-6 mt-auto">
                                                         <span class="text-2xl font-semibold">$ {{ item.price }}</span>
                                                         <div class="flex gap-2">
-                                                            <p-button icon="pi pi-shopping-cart" label="Buy Now" [disabled]="item.inventoryStatus === 'OUTOFSTOCK'" class="flex-auto whitespace-nowrap" styleClass="w-full"></p-button>
+                                                            <p-button
+                                                                icon="pi pi-shopping-cart"
+                                                                label="Buy Now"
+                                                                [disabled]="item.inventoryStatus === 'OUTOFSTOCK' || !item.id"
+                                                                [routerLink]="item.id ? ['/store/products', item.id] : null"
+                                                                class="flex-auto whitespace-nowrap"
+                                                                styleClass="w-full"
+                                                            ></p-button>
                                                             <p-button icon="pi pi-heart" styleClass="h-full" [outlined]="true"></p-button>
                                                         </div>
                                                     </div>
@@ -250,7 +266,7 @@ export class ProductFilterSidebar implements OnChanges {
         </div>
     `
 })
-export class StoreProducts {
+export class StoreProducts implements OnInit {
     layout: 'list' | 'grid' = 'grid';
 
     layoutOptions: Array<'list' | 'grid'> = ['list', 'grid'];
@@ -263,23 +279,45 @@ export class StoreProducts {
 
     priceBounds: number[] = [0, 0];
 
-    constructor(private productService: ProductService) {
-        afterNextRender(() => {
+    loading = true;
+
+    error = '';
+
+    constructor(private productService: ProductService, private cdr: ChangeDetectorRef) {}
+
+    ngOnInit() {
+        // Defer initial fetch to the next macrotask so bindings stay stable during first dev-mode checks.
+        setTimeout(() => {
             void this.loadProducts();
-        });
+        }, 0);
     }
 
     async loadProducts() {
-        this.productService.getStoreProducts().then((data) => {
+        this.loading = true;
+        this.error = '';
+
+        try {
+            const data = await this.productService.getStoreProducts();
             console.log('Products fetched from API:', data);
             this.products = data;
             this.priceBounds = this.getPriceBounds(data);
             this.filters = { ...this.filters, priceRange: [...this.priceBounds] };
             this.applyFilters();
-        });
+        } catch (e: any) {
+            this.error = e?.error?.error ?? e?.message ?? 'Failed to load products';
+            this.products = [];
+            this.filteredProducts = [];
+        } finally {
+            this.loading = false;
+            this.cdr.detectChanges();
+        }
     }
 
     onFiltersChange(filters: ProductFilters) {
+        if (this.areFiltersEqual(this.filters, filters)) {
+            return;
+        }
+
         this.filters = filters;
         this.applyFilters();
     }
@@ -316,5 +354,11 @@ export class StoreProducts {
             default:
                 return 'info';
         }
+    }
+
+    private areFiltersEqual(left: ProductFilters, right: ProductFilters) {
+        const samePrice = left.priceRange.length === right.priceRange.length && left.priceRange.every((value, index) => value === right.priceRange[index]);
+        const sameAvailability = left.availability.length === right.availability.length && left.availability.every((value, index) => value === right.availability[index]);
+        return samePrice && sameAvailability;
     }
 }

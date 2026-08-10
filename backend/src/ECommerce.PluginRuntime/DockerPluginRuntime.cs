@@ -216,6 +216,9 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
             $"RabbitMq__VirtualHost={_opts.BrokerVirtualHost}"
         };
 
+        if (!string.IsNullOrWhiteSpace(_opts.StripeSecretKey))
+            env.Add($"Stripe__SecretKey={_opts.StripeSecretKey}");
+
         if (databaseEndpoint is null)
             return env;
 

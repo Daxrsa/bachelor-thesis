@@ -28,4 +28,7 @@ public sealed class PluginRuntimeOptions
 
     /// <summary>RabbitMQ virtual host used by plugin integration events.</summary>
     public string BrokerVirtualHost { get; set; } = "/";
+
+    /// <summary>Stripe test/secret key forwarded to payment-plugin container as Stripe__SecretKey.</summary>
+    public string StripeSecretKey { get; set; } = string.Empty;
 }
