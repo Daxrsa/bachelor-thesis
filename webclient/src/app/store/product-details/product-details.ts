@@ -56,7 +56,6 @@ import { AddProductToCartPayload, Product, ProductService } from '@/app/pages/se
                                     <p class="m-0 text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wide">{{ product.category || 'General' }}</p>
                                     <h1 class="m-0 text-3xl md:text-4xl font-semibold leading-tight">{{ product.name || 'Unnamed product' }}</h1>
                                 </div>
-                                <p-tag [value]="product.inventoryStatus || 'UNKNOWN'" [severity]="getSeverity(product.inventoryStatus)"></p-tag>
                             </div>
 
                             <div class="flex items-end justify-between gap-3 flex-wrap">
@@ -216,7 +215,7 @@ export class StoreProductDetails implements OnInit {
     }
 
     productImage(product: Product) {
-        return `https://primefaces.org/cdn/primeng/images/demo/product/${product.image || 'placeholder.png'}`;
+        return this.productService.imageUrl(product) ?? `https://primefaces.org/cdn/primeng/images/demo/product/${product.image || 'placeholder.png'}`;
     }
 
     getSeverity(status?: string) {

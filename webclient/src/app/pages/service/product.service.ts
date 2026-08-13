@@ -1350,6 +1350,24 @@ export class ProductService {
         return `${this.apiBase}/api/p/files-plugin/static/images/${encodeURIComponent(fileName)}`;
     }
 
+    imageUrl(product: Product): string | null {
+        const fromFilePlugin = product.imageUrl?.trim();
+        if (fromFilePlugin) {
+            return fromFilePlugin;
+        }
+
+        const raw = product.imageFileName?.trim() || product.image?.trim();
+        if (!raw) {
+            return null;
+        }
+
+        if (/^https?:\/\//i.test(raw)) {
+            return raw;
+        }
+
+        return this.buildFilesPluginImageUrl(raw);
+    }
+
     deleteStoreProduct(id: string) {
         return firstValueFrom(this.http.delete<void>(`${this.apiBase}/api/p/products-plugin/products/${encodeURIComponent(id)}`));
     }

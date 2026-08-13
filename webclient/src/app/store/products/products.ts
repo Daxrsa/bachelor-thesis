@@ -129,7 +129,6 @@ export class ProductFilterSidebar implements OnChanges {
                 <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                     <div>
                         <p class="text-surface-500 dark:text-surface-400 uppercase tracking-wide text-xs">Store</p>
-                        <h1 class="text-3xl md:text-4xl font-semibold m-0">Products</h1>
                     </div>
                     <p class="m-0 text-surface-600 dark:text-surface-300">{{ loading ? 'Loading...' : filteredProducts.length + ' items' }}</p>
                 </div>
@@ -162,7 +161,7 @@ export class ProductFilterSidebar implements OnChanges {
                                         <div *ngFor="let item of items; let i = index">
                                             <div class="flex flex-col sm:flex-row sm:items-center p-6 gap-4" [ngClass]="{ 'border-t border-surface': i !== 0 }">
                                                 <div class="md:w-40 relative">
-                                                    <img class="block xl:block mx-auto rounded w-full" src="https://primefaces.org/cdn/primevue/images/product/{{ item.image }}" [alt]="item.name" />
+                                                    <img class="block xl:block mx-auto rounded w-full" [src]="imageUrl(item)" [alt]="item.name" />
                                                     <div class="absolute bg-black/70 rounded-border" [style]="{ left: '4px', top: '4px' }">
                                                         <p-tag [value]="item.inventoryStatus" [severity]="getSeverity(item)"></p-tag>
                                                     </div>
@@ -212,7 +211,7 @@ export class ProductFilterSidebar implements OnChanges {
                                         <div *ngFor="let item of items" class="col-span-12 sm:col-span-6 lg:col-span-4 p-2">
                                             <div class="p-6 border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 rounded flex flex-col h-full">
                                                 <div class="relative w-full shadow-sm">
-                                                    <img class="rounded w-full" src="https://primefaces.org/cdn/primevue/images/product/{{ item.image }}" [alt]="item.name" />
+                                                    <img class="rounded w-full" [src]="imageUrl(item)" [alt]="item.name" />
                                                     <div class="absolute bg-black/70 rounded-border" [style]="{ left: '4px', top: '4px' }">
                                                         <p-tag [value]="item.inventoryStatus" [severity]="getSeverity(item)"></p-tag>
                                                     </div>
@@ -283,7 +282,7 @@ export class StoreProducts implements OnInit {
 
     error = '';
 
-    constructor(private productService: ProductService, private cdr: ChangeDetectorRef) {}
+    constructor(readonly productService: ProductService, private cdr: ChangeDetectorRef) {}
 
     ngOnInit() {
         // Defer initial fetch to the next macrotask so bindings stay stable during first dev-mode checks.
@@ -354,6 +353,10 @@ export class StoreProducts implements OnInit {
             default:
                 return 'info';
         }
+    }
+
+    imageUrl(product: Product): string {
+        return this.productService.imageUrl(product) ?? `https://primefaces.org/cdn/primevue/images/product/${product.image}`;
     }
 
     private areFiltersEqual(left: ProductFilters, right: ProductFilters) {

@@ -48,7 +48,6 @@ interface StoreBenefit {
             <p-card styleClass="overflow-hidden">
                 <div class="grid grid-cols-12 gap-6 items-center">
                     <div class="col-span-12 lg:col-span-6 flex flex-col gap-4">
-                        <p-tag value="Summer Tech Event" severity="warn"></p-tag>
                         <h1 class="m-0 text-3xl md:text-5xl font-semibold leading-tight">Power Your Setup With Premium Electronics</h1>
                         <p class="m-0 text-surface-600 dark:text-surface-300 text-lg">Discover flagship phones, high-performance laptops, smart home devices, and pro audio gear with fast delivery and trusted warranties.</p>
                         <div class="flex flex-wrap gap-2">

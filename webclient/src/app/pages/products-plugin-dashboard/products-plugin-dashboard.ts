@@ -78,7 +78,7 @@ import { Product, ProductService } from '@/app/pages/service/product.service';
                     <tr>
                         <td>
                             <img
-                                *ngIf="imageUrl(product) as url; else noImage"
+                                *ngIf="productService.imageUrl(product) as url; else noImage"
                                 [src]="url"
                                 [alt]="product.name || 'product image'"
                                 class="w-14 h-14 object-cover rounded border"
@@ -181,7 +181,7 @@ export class ProductsPluginDashboard implements OnInit {
     selectedImageFile: File | null = null;
 
     constructor(
-        private readonly productService: ProductService,
+        readonly productService: ProductService,
         private readonly messageService: MessageService,
         private readonly confirmationService: ConfirmationService
     ) {}
@@ -274,7 +274,7 @@ export class ProductsPluginDashboard implements OnInit {
             if (this.selectedImageFile) {
                 const uploaded = await this.productService.uploadImageToFilesPlugin(this.selectedImageFile);
                 payload.imageFileName = uploaded.fileName;
-                payload.imageUrl = this.productService.buildFilesPluginImageUrl(uploaded.fileName);
+                payload.imageUrl = this.productService.imageUrl({ imageFileName: uploaded.fileName }) ?? undefined;
                 payload.image = uploaded.fileName;
             }
 
@@ -327,24 +327,6 @@ export class ProductsPluginDashboard implements OnInit {
             default:
                 return 'info';
         }
-    }
-
-    imageUrl(product: Product): string | null {
-        const fromFilePlugin = product.imageUrl?.trim();
-        if (fromFilePlugin) {
-            return fromFilePlugin;
-        }
-
-        const raw = product.imageFileName?.trim() || product.image?.trim();
-        if (!raw) {
-            return null;
-        }
-
-        if (/^https?:\/\//i.test(raw)) {
-            return raw;
-        }
-
-        return this.productService.buildFilesPluginImageUrl(raw);
     }
 
     private emptyProduct(): Product {

@@ -31,22 +31,20 @@ import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
         InputTextModule
     ],
     template: `
-        <div class="w-full max-w-[95rem] mx-auto p-4 md:p-6 pb-0">
+        <div class="w-full mx-auto p-4 md:p-6 pb-0">
             <p-toolbar styleClass="rounded-xl shadow-sm">
                 <ng-template #start>
                     <div class="flex items-center gap-3">
-                        <p-avatar icon="pi pi-bolt" shape="circle" size="large" styleClass="bg-primary text-primary-contrast"></p-avatar>
-                        <div class="flex items-center gap-2">
-                            <p-chip label="NEXTRONICS" icon="pi pi-shop" styleClass="font-semibold"></p-chip>
-                            <p-tag value="Electronics" severity="info"></p-tag>
+                        <div class="flex items-center h-14">
+                            <img [src]="logoUrl" alt="Logo" class="h-full w-auto object-contain" />
                         </div>
                     </div>
                 </ng-template>
 
                 <ng-template #center>
-                    <p-iconfield>
+                    <p-iconfield class="w-[24rem] md:w-[30rem] max-w-full">
                         <p-inputicon class="pi pi-search" />
-                        <input pInputText type="text" placeholder="Search gadgets, laptops, audio..." [(ngModel)]="searchTerm" />
+                        <input pInputText type="text" class="w-full" placeholder="Search products..." [(ngModel)]="searchTerm" />
                     </p-iconfield>
                 </ng-template>
 
@@ -54,10 +52,9 @@ import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
                     <div class="flex items-center gap-2">
                         <span *ngIf="currentUserEmail" class="hidden md:inline text-sm text-surface-600 dark:text-surface-300">{{ currentUserEmail }}</span>
                         <p-button *ngIf="!currentUserEmail" label="Login" icon="pi pi-sign-in" severity="secondary" [outlined]="true" [routerLink]="['/auth/login']"></p-button>
-                        <p-button label="Products" icon="pi pi-th-large" severity="contrast" [outlined]="true" [routerLink]="['/store/products']"></p-button>
-                        <p-button icon="pi pi-heart" severity="secondary" [text]="true"></p-button>
-                        <p-button icon="pi pi-shopping-cart" [routerLink]="['/store/my-cart']"></p-button>
-                        <p-button *ngIf="currentUserEmail" label="Log out" icon="pi pi-sign-out" severity="secondary" [outlined]="true" (onClick)="logout()"></p-button>
+                        <p-button label="Products" icon="pi pi-th-large" severity="secondary" [outlined]="true" [routerLink]="['/store/products']"></p-button>
+                        <p-button icon="pi pi-shopping-cart" [outlined]="true" [routerLink]="['/store/my-cart']"></p-button>
+                        <p-button *ngIf="currentUserEmail" icon="pi pi-sign-out" severity="secondary" [outlined]="true" (onClick)="logout()"></p-button>
                     </div>
                 </ng-template>
             </p-toolbar>
@@ -69,6 +66,8 @@ import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
 export class StoreLayout implements OnInit {
     private readonly apiBase = 'http://localhost:8080';
 
+    logoUrl = '/demo/images/logo.webp';
+
     searchTerm = '';
     currentUserEmail: string | null = null;
 
@@ -76,7 +75,7 @@ export class StoreLayout implements OnInit {
         private http: HttpClient,
         private cdr: ChangeDetectorRef,
         private router: Router
-    ) {}
+    ) { }
 
     ngOnInit() {
         void this.loadCurrentUser();

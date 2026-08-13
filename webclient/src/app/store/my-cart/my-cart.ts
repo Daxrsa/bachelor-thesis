@@ -22,21 +22,15 @@ interface CartRow {
     providers: [ProductService],
     template: `
         <div class="p-4 md:p-6 xl:p-8">
-            <section class="max-w-6xl mx-auto flex flex-col gap-6">
+            <section class="max-w-6xl mx-auto flex flex-col gap-3">
                 <div class="flex items-center justify-between gap-3 flex-wrap">
                     <p-button icon="pi pi-arrow-left" label="Back to store" severity="secondary" [outlined]="true" [routerLink]="['/store']"></p-button>
                     <p-button label="Browse products" icon="pi pi-th-large" [routerLink]="['/store/products']"></p-button>
                 </div>
 
-                <div class="card border border-surface-200 dark:border-surface-700">
-                    <div class="flex items-center justify-between gap-3 flex-wrap">
-                        <div>
-                            <p class="m-0 text-surface-500 dark:text-surface-400 uppercase tracking-wide text-xs">Store</p>
-                            <h1 class="m-0 text-3xl md:text-4xl font-semibold">My Cart</h1>
-                        </div>
+                    <div class="flex items-center justify-between flex-wrap">
                         <p-button icon="pi pi-refresh" label="Refresh" severity="secondary" [outlined]="true" [loading]="loading" (onClick)="loadCart()"></p-button>
                     </div>
-                </div>
 
                 <div *ngIf="!hasToken" class="card border border-amber-300 bg-amber-50 dark:bg-amber-900/20">
                     <p class="m-0 text-amber-700 dark:text-amber-300"><b>You are not logged in.</b> Please login to view your cart.</p>
@@ -61,13 +55,14 @@ interface CartRow {
                     </div>
                 </div>
 
+                <div class="text-right">
+                    <p class="m-0 font-semibold">{{ totalUnits() }} item(s)</p>
+                    <p class="m-0 text-surface-500 dark:text-surface-400">Estimated total: {{ estimatedTotal() | currency: 'USD' }}</p>
+                 </div>
+
                 <div *ngIf="hasToken && !loading && !error && cart && cart.items.length > 0" class="card border border-surface-200 dark:border-surface-700">
                     <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                        <p class="m-0 text-surface-500 dark:text-surface-400">Cart ID: {{ cart.id }}</p>
-                        <div class="text-right">
-                            <p class="m-0 font-semibold">{{ totalUnits() }} item(s)</p>
-                            <p class="m-0 text-surface-500 dark:text-surface-400">Estimated total: {{ estimatedTotal() | currency: 'USD' }}</p>
-                        </div>
+                        <p class="m-0 text-surface-500 dark:text-surface-400"></p>
                     </div>
 
                     <p-table [value]="rows" responsiveLayout="scroll">
@@ -86,15 +81,14 @@ interface CartRow {
                                 <td>
                                     <div class="flex items-center gap-3">
                                         <img
-                                            *ngIf="row.product?.image"
+                                            *ngIf="row.product"
                                             class="w-14 h-14 rounded object-cover border border-surface-200 dark:border-surface-700"
-                                            [src]="productImage(row.product.image)"
+                                            [src]="productImage(row.product)"
                                             [alt]="row.product?.name || row.item.productId"
                                         />
                                         <div class="flex flex-col gap-1">
                                             <span class="font-medium">{{ row.product?.name || row.item.productId }}</span>
                                             <span class="text-sm text-surface-500 dark:text-surface-400">{{ row.product?.category || 'Unknown category' }}</span>
-                                            <span class="text-xs text-surface-500 dark:text-surface-400">Item ID: {{ row.item.id }}</span>
                                         </div>
                                     </div>
                                 </td>
@@ -106,7 +100,6 @@ interface CartRow {
                                     <div class="flex flex-col gap-2">
                                         <div class="flex items-center gap-2 flex-wrap">
                                             <p-button
-                                                label="View product"
                                                 icon="pi pi-external-link"
                                                 severity="secondary"
                                                 [outlined]="true"
@@ -124,7 +117,6 @@ interface CartRow {
                                                     inputStyleClass="w-20"
                                                 ></p-inputnumber>
                                                 <p-button
-                                                    label="Remove"
                                                     icon="pi pi-trash"
                                                     severity="danger"
                                                     [loading]="removingProductId === row.item.productId"
@@ -229,8 +221,8 @@ export class StoreMyCart implements OnInit {
         return this.unitPrice(row) * (row.item.quantity ?? 0);
     }
 
-    productImage(imageName: string) {
-        return `https://primefaces.org/cdn/primeng/images/demo/product/${imageName}`;
+    productImage(product: Product) {
+        return this.productService.imageUrl(product) ?? `https://primefaces.org/cdn/primeng/images/demo/product/${product.image || 'placeholder.png'}`;
     }
 
     private async hydrateRows(items: CartItemResponse[]) {
