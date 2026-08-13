@@ -1,9 +1,29 @@
 name: ecommerce
 
 services:
+  hello-plugin-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hello
+      POSTGRES_PASSWORD: hello
+      POSTGRES_DB: hello
+    ports:
+      - "5433:5432"
+    volumes:
+      - hello-plugin-db-data:/var/lib/postgresql/data
+    networks:
+      - plugins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hello"]
+      interval: 5s
+      retries: 10
+
   hello-plugin-image:
     profiles:
       - plugin-images
+    depends_on:
+      hello-plugin-db:
+        condition: service_healthy
     build:
       context: ./plugins/hello-plugin
       dockerfile_inline: |
@@ -19,11 +39,33 @@ services:
         COPY --from=build /out ./
         EXPOSE 8080
         ENTRYPOINT ["dotnet", "HelloPlugin.dll"]
+    environment:
+      ConnectionStrings__Default: "Host=hello-plugin-db;Port=5432;Database=hello;Username=hello;Password=hello"
     image: localhost:5000/ecommerce/hello-plugin:0.1.0
+
+  products-plugin-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: products
+      POSTGRES_PASSWORD: products
+      POSTGRES_DB: products
+    ports:
+      - "5436:5432"
+    volumes:
+      - products-plugin-db-data:/var/lib/postgresql/data
+    networks:
+      - plugins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U products"]
+      interval: 5s
+      retries: 10
 
   products-plugin-image:
     profiles:
       - plugin-images
+    depends_on:
+      products-plugin-db:
+        condition: service_healthy
     build:
       context: .
       dockerfile_inline: |
@@ -42,11 +84,33 @@ services:
         COPY --from=build /out ./
         EXPOSE 8080
         ENTRYPOINT ["dotnet", "ProductsPlugin.dll"]
+    environment:
+      ConnectionStrings__Default: "Host=products-plugin-db;Port=5432;Database=products;Username=products;Password=products"
     image: localhost:5000/ecommerce/products-plugin:0.1.0
+
+  cart-plugin-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cart
+      POSTGRES_PASSWORD: cart
+      POSTGRES_DB: cart
+    ports:
+      - "5437:5432"
+    volumes:
+      - cart-plugin-db-data:/var/lib/postgresql/data
+    networks:
+      - plugins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cart"]
+      interval: 5s
+      retries: 10
 
   cart-plugin-image:
     profiles:
       - plugin-images
+    depends_on:
+      cart-plugin-db:
+        condition: service_healthy
     build:
       context: .
       dockerfile_inline: |
@@ -65,11 +129,33 @@ services:
         COPY --from=build /out ./
         EXPOSE 8080
         ENTRYPOINT ["dotnet", "CartPlugin.dll"]
+    environment:
+      ConnectionStrings__Default: "Host=cart-plugin-db;Port=5432;Database=cart;Username=cart;Password=cart"
     image: localhost:5000/ecommerce/cart-plugin:0.1.0
+
+  payment-plugin-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+      POSTGRES_DB: payment
+    ports:
+      - "5434:5432"
+    volumes:
+      - payment-plugin-db-data:/var/lib/postgresql/data
+    networks:
+      - plugins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment"]
+      interval: 5s
+      retries: 10
 
   payment-plugin-image:
     profiles:
       - plugin-images
+    depends_on:
+      payment-plugin-db:
+        condition: service_healthy
     build:
       context: .
       dockerfile_inline: |
@@ -88,6 +174,8 @@ services:
         COPY --from=build /out ./
         EXPOSE 8080
         ENTRYPOINT ["dotnet", "PaymentPlugin.dll"]
+    environment:
+      ConnectionStrings__Default: "Host=payment-plugin-db;Port=5432;Database=payment;Username=payment;Password=payment"
     image: localhost:5000/ecommerce/payment-plugin:0.1.0
 
   registry:
@@ -115,23 +203,6 @@ services:
       - core
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ecommerce"]
-      interval: 5s
-      retries: 10
-
-  payment-plugin-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: payment
-      POSTGRES_PASSWORD: payment
-      POSTGRES_DB: payment
-    ports:
-      - "5434:5432"
-    volumes:
-      - payment-plugin-db-data:/var/lib/postgresql/data
-    networks:
-      - plugins
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U payment"]
       interval: 5s
       retries: 10
 
@@ -181,6 +252,48 @@ services:
       - core
       - plugins
 
+  files-plugin-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: files
+      POSTGRES_PASSWORD: files
+      POSTGRES_DB: files
+    ports:
+      - "5435:5432"
+    volumes:
+      - files-plugin-db-data:/var/lib/postgresql/data
+    networks:
+      - plugins
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U files"]
+      interval: 5s
+      retries: 10
+
+  files-plugin-image:
+    profiles:
+      - plugin-images
+    depends_on:
+      files-plugin-db:
+        condition: service_healthy
+    build:
+      context: ./plugins/files-plugin
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+        WORKDIR /src
+        COPY FilesPlugin.csproj ./
+        RUN dotnet restore
+        COPY . .
+        RUN dotnet publish FilesPlugin.csproj -c Release -o /out
+
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0
+        WORKDIR /app
+        COPY --from=build /out ./
+        EXPOSE 8080
+        ENTRYPOINT ["dotnet", "FilesPlugin.dll"]
+    environment:
+      ConnectionStrings__Default: "Host=files-plugin-db;Port=5432;Database=files;Username=files;Password=files"
+    image: localhost:5000/ecommerce/files-plugin:0.1.0
+
 networks:
   core:
     name: ecommerce_core
@@ -189,5 +302,9 @@ networks:
 
 volumes:
   db-data:
+  hello-plugin-db-data:
+  products-plugin-db-data:
+  cart-plugin-db-data:
   payment-plugin-db-data:
+  files-plugin-db-data:
   registry-data:

@@ -77,5 +77,27 @@
       "volumeMountPath": "/var/lib/postgresql/data"
     },
     "uiExtensions": {}
+  },
+  {
+    "id": "files-plugin",
+    "name": "Files Plugin",
+    "version": "0.1.0",
+    "description": "Owns file management with a focus on image upload, listing, and deletion.",
+    "publisher": "example",
+    "image": "localhost:5000/ecommerce/files-plugin:0.1.0",
+    "containerPort": 8080,
+    "healthEndpoint": "/health",
+    "hostApi": "^1.0.0",
+    "permissions": [],
+    "database": {
+      "engine": "postgres",
+      "image": "postgres:16-alpine",
+      "databaseName": "files",
+      "username": "files",
+      "password": "files",
+      "port": 5432,
+      "volumeMountPath": "/var/lib/postgresql/data"
+    },
+    "uiExtensions": {}
   }
 ]

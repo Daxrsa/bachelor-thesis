@@ -17,6 +17,8 @@ public sealed class ProductsDbContext(DbContextOptions<ProductsDbContext> option
             entity.Property(product => product.Name).HasMaxLength(256).IsRequired();
             entity.Property(product => product.InventoryStatus).HasMaxLength(32).IsRequired();
             entity.Property(product => product.Category).HasMaxLength(128);
+            entity.Property(product => product.ImageFileName).HasMaxLength(256);
+            entity.Property(product => product.ImageUrl).HasMaxLength(1024);
             entity.Property(product => product.Image).HasMaxLength(256);
             entity.Property(product => product.Price).HasPrecision(12, 2);
             entity.HasIndex(product => product.InventoryStatus);

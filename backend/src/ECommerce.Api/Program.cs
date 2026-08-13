@@ -5,6 +5,7 @@ using ECommerce.Infrastructure;
 using ECommerce.PluginRuntime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Microsoft.OpenApi;
@@ -111,6 +112,13 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 
 var app = builder.Build();
 
+var staticFilesRoot = ResolvePath(
+    app.Environment.ContentRootPath,
+    builder.Configuration["StaticFiles:RootPath"] ?? Path.Combine("storage", "public"));
+Directory.CreateDirectory(staticFilesRoot);
+
+var staticFilesRequestPath = builder.Configuration["StaticFiles:RequestPath"] ?? "/static";
+
 // --- Startup: ensure schema (swap to db.Database.MigrateAsync() once you add EF migrations) ---
 using (var scope = app.Services.CreateScope())
 {
@@ -131,6 +139,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();   
     app.UseSwaggerUI();
 }
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(staticFilesRoot),
+    RequestPath = staticFilesRequestPath
+});
 
 app.UseCors();
 app.UseAuthentication();
@@ -173,3 +187,8 @@ static void LoadDotEnvIfPresent()
             Environment.SetEnvironmentVariable(key, value);
     }
 }
+
+static string ResolvePath(string contentRootPath, string configuredPath) =>
+    Path.IsPathRooted(configuredPath)
+        ? configuredPath
+        : Path.GetFullPath(Path.Combine(contentRootPath, configuredPath));

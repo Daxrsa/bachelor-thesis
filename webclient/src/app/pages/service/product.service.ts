@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, tap } from 'rxjs';
 
 interface InventoryStatus {
     label: string;
@@ -16,8 +16,18 @@ export interface Product {
     quantity?: number;
     inventoryStatus?: string;
     category?: string;
+    imageFileName?: string;
+    imageUrl?: string;
     image?: string;
     rating?: number;
+}
+
+export interface UploadedImage {
+    fileName: string;
+    contentType: string;
+    size: number;
+    publicUrl: string;
+    uploadedAtUtc: string;
 }
 
 export interface AddProductToCartPayload {
@@ -1311,7 +1321,11 @@ export class ProductService {
         }
 
         const suffix = query.toString() ? `?${query.toString()}` : '';
-        return firstValueFrom(this.http.get<Product[]>(`${this.apiBase}/api/p/products-plugin/products${suffix}`));
+        return firstValueFrom(
+            this.http.get<Product[]>(`${this.apiBase}/api/p/products-plugin/products${suffix}`).pipe(
+                tap((products) => console.log('[ProductService] getStoreProducts:', products))
+            )
+        );
     }
 
     getStoreProductById(id: string) {
@@ -1324,6 +1338,16 @@ export class ProductService {
 
     updateStoreProduct(id: string, payload: Product) {
         return firstValueFrom(this.http.put<Product>(`${this.apiBase}/api/p/products-plugin/products/${encodeURIComponent(id)}`, payload));
+    }
+
+    uploadImageToFilesPlugin(file: File) {
+        const formData = new FormData();
+        formData.append('file', file, file.name);
+        return firstValueFrom(this.http.post<UploadedImage>(`${this.apiBase}/api/p/files-plugin/files/images`, formData));
+    }
+
+    buildFilesPluginImageUrl(fileName: string) {
+        return `${this.apiBase}/api/p/files-plugin/static/images/${encodeURIComponent(fileName)}`;
     }
 
     deleteStoreProduct(id: string) {

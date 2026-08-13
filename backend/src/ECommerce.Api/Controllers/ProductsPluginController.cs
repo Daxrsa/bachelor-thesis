@@ -108,7 +108,23 @@ public sealed class ProductsPluginController(IPluginService plugins, IHttpClient
             return null;
         }
 
-        return $"http://{install.ContainerName}:{install.ContainerPort}/{path}{Request.QueryString}";
+        var targetHost = install.ContainerName;
+        var isRunningInContainer = string.Equals(
+            Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (isRunningInContainer &&
+            (string.Equals(targetHost, "localhost", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(targetHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(targetHost, "::1", StringComparison.OrdinalIgnoreCase)))
+        {
+            // Plugin installs created from a host-run API store localhost:<published-port>.
+            // When this API runs in Docker, localhost points to this container itself.
+            targetHost = "host.docker.internal";
+        }
+
+        return $"http://{targetHost}:{install.ContainerPort}/{path}{Request.QueryString}";
     }
 
     private async Task SendAsync(HttpRequestMessage forward, CancellationToken ct)
@@ -139,6 +155,8 @@ public sealed record ProductRequest(
     int Quantity,
     string InventoryStatus,
     string? Category,
+    string? ImageFileName,
+    string? ImageUrl,
     string? Image,
     int Rating);
 
@@ -151,5 +169,7 @@ public sealed record ProductResponse(
     int Quantity,
     string InventoryStatus,
     string? Category,
+    string? ImageFileName,
+    string? ImageUrl,
     string? Image,
     int Rating);

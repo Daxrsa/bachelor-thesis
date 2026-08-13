@@ -17,6 +17,11 @@ public sealed class PluginProxyController(IPluginService svc, IHttpClientFactory
     private readonly IPluginService _svc = svc;
     private readonly IHttpClientFactory _http = http;
 
+    [AllowAnonymous]
+    [HttpGet("files-plugin/static/images/{**path}")]
+    public Task ProxyFilesPluginStatic(string? path, CancellationToken ct)
+        => Proxy("files-plugin", $"static/images/{path}", ct);
+
     [Route("{pluginId}/{**path}")]
     [HttpGet, HttpPost, HttpPut, HttpDelete, HttpPatch]
     public async Task Proxy(string pluginId, string? path, CancellationToken ct)
@@ -37,15 +42,74 @@ public sealed class PluginProxyController(IPluginService svc, IHttpClientFactory
             return;
         }
 
-        var target = $"http://{install.ContainerName}:{install.ContainerPort}/{path}{Request.QueryString}";
+        var targetHost = install.ContainerName;
+        var isRunningInContainer = string.Equals(
+            Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (isRunningInContainer &&
+            (string.Equals(targetHost, "localhost", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(targetHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(targetHost, "::1", StringComparison.OrdinalIgnoreCase)))
+        {
+            // Plugin installs created from a host-run API store localhost:<published-port>.
+            // When proxying from inside Docker, localhost resolves to this API container itself.
+            targetHost = "host.docker.internal";
+        }
+
+        var target = $"http://{targetHost}:{install.ContainerPort}/{path}{Request.QueryString}";
         var client = _http.CreateClient("plugin-proxy");
 
         using var forward = new HttpRequestMessage(new HttpMethod(Request.Method), target);
         if (Request.ContentLength > 0 || Request.Headers.ContainsKey("Transfer-Encoding"))
         {
-            forward.Content = new StreamContent(Request.Body);
-            if (Request.ContentType is { Length: > 0 } ct1)
-                forward.Content.Headers.TryAddWithoutValidation("Content-Type", ct1);
+            if (Request.HasFormContentType)
+            {
+                var form = await Request.ReadFormAsync(ct);
+                var multipart = new MultipartFormDataContent();
+
+                foreach (var field in form)
+                {
+                    foreach (var value in field.Value)
+                    {
+                        multipart.Add(new StringContent(value), field.Key);
+                    }
+                }
+
+                foreach (var file in form.Files)
+                {
+                    await using var stream = file.OpenReadStream();
+                    await using var memory = new MemoryStream();
+                    await stream.CopyToAsync(memory, ct);
+
+                    var fileContent = new ByteArrayContent(memory.ToArray());
+                    if (!string.IsNullOrWhiteSpace(file.ContentType))
+                    {
+                        fileContent.Headers.TryAddWithoutValidation("Content-Type", file.ContentType);
+                    }
+
+                    multipart.Add(fileContent, file.Name, file.FileName);
+                }
+
+                forward.Content = multipart;
+            }
+            else
+            {
+                Request.EnableBuffering();
+                if (Request.Body.CanSeek)
+                    Request.Body.Position = 0;
+
+                await using var buffer = new MemoryStream();
+                await Request.Body.CopyToAsync(buffer, ct);
+
+                if (Request.Body.CanSeek)
+                    Request.Body.Position = 0;
+
+                forward.Content = new ByteArrayContent(buffer.ToArray());
+                if (Request.ContentType is { Length: > 0 } ct1)
+                    forward.Content.Headers.TryAddWithoutValidation("Content-Type", ct1);
+            }
         }
 
         // Forward the caller's identity so plugins can authorize per-user.

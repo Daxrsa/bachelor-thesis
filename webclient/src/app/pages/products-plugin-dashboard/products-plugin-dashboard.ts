@@ -148,8 +148,9 @@ import { Product, ProductService } from '@/app/pages/service/product.service';
                     </div>
 
                     <div class="md:col-span-2">
-                        <label for="image" class="block font-bold mb-2">Image</label>
-                        <input id="image" type="text" pInputText [(ngModel)]="form.image" class="w-full" placeholder="optional image file" />
+                        <label for="imageFile" class="block font-bold mb-2">Image</label>
+                        <input id="imageFile" type="file" accept="image/*" class="w-full" (change)="onImageSelected($event)" />
+                        <small class="text-muted-color" *ngIf="form.imageFileName">Current file: {{ form.imageFileName }}</small>
                     </div>
                 </div>
             </ng-template>
@@ -177,6 +178,7 @@ export class ProductsPluginDashboard implements OnInit {
     dialogVisible = false;
     editingId: string | null = null;
     form: Product = this.emptyProduct();
+    selectedImageFile: File | null = null;
 
     constructor(
         private readonly productService: ProductService,
@@ -227,6 +229,7 @@ export class ProductsPluginDashboard implements OnInit {
     openNew(): void {
         this.editingId = null;
         this.form = this.emptyProduct();
+        this.selectedImageFile = null;
         this.dialogVisible = true;
     }
 
@@ -240,6 +243,7 @@ export class ProductsPluginDashboard implements OnInit {
             const product = await this.productService.getStoreProductById(productId);
             this.editingId = product.id ?? productId;
             this.form = { ...product };
+            this.selectedImageFile = null;
             this.dialogVisible = true;
         } catch (error) {
             this.notifyError('Failed to load selected product', error);
@@ -250,6 +254,12 @@ export class ProductsPluginDashboard implements OnInit {
 
     closeDialog(): void {
         this.dialogVisible = false;
+        this.selectedImageFile = null;
+    }
+
+    onImageSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        this.selectedImageFile = input.files?.[0] ?? null;
     }
 
     async save(): Promise<void> {
@@ -261,6 +271,13 @@ export class ProductsPluginDashboard implements OnInit {
 
         this.saving.set(true);
         try {
+            if (this.selectedImageFile) {
+                const uploaded = await this.productService.uploadImageToFilesPlugin(this.selectedImageFile);
+                payload.imageFileName = uploaded.fileName;
+                payload.imageUrl = this.productService.buildFilesPluginImageUrl(uploaded.fileName);
+                payload.image = uploaded.fileName;
+            }
+
             if (this.editingId) {
                 await this.productService.updateStoreProduct(this.editingId, payload);
                 this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Product updated.' });
@@ -270,6 +287,7 @@ export class ProductsPluginDashboard implements OnInit {
             }
 
             this.dialogVisible = false;
+            this.selectedImageFile = null;
             await this.loadProducts();
         } catch (error) {
             this.notifyError('Failed to save product', error);
@@ -312,7 +330,12 @@ export class ProductsPluginDashboard implements OnInit {
     }
 
     imageUrl(product: Product): string | null {
-        const raw = product.image?.trim();
+        const fromFilePlugin = product.imageUrl?.trim();
+        if (fromFilePlugin) {
+            return fromFilePlugin;
+        }
+
+        const raw = product.imageFileName?.trim() || product.image?.trim();
         if (!raw) {
             return null;
         }
@@ -321,7 +344,7 @@ export class ProductsPluginDashboard implements OnInit {
             return raw;
         }
 
-        return `https://primefaces.org/cdn/primeng/images/demo/product/${raw}`;
+        return this.productService.buildFilesPluginImageUrl(raw);
     }
 
     private emptyProduct(): Product {
@@ -333,6 +356,8 @@ export class ProductsPluginDashboard implements OnInit {
             quantity: 0,
             inventoryStatus: 'INSTOCK',
             category: '',
+            imageFileName: '',
+            imageUrl: '',
             image: '',
             rating: 0
         };
@@ -347,6 +372,8 @@ export class ProductsPluginDashboard implements OnInit {
         const code = product.code?.trim();
         const description = product.description?.trim();
         const category = product.category?.trim();
+        const imageFileName = product.imageFileName?.trim();
+        const imageUrl = product.imageUrl?.trim();
         const image = product.image?.trim();
 
         return {
@@ -357,6 +384,8 @@ export class ProductsPluginDashboard implements OnInit {
             quantity: product.quantity,
             inventoryStatus: product.inventoryStatus.trim().toUpperCase(),
             category: category ? category : undefined,
+            imageFileName: imageFileName ? imageFileName : undefined,
+            imageUrl: imageUrl ? imageUrl : undefined,
             image: image ? image : undefined,
             rating: typeof product.rating === 'number' ? product.rating : 0
         };
@@ -368,7 +397,43 @@ export class ProductsPluginDashboard implements OnInit {
     }
 
     private errorMessage(error: unknown): string {
-        const err = error as { error?: { error?: string }; message?: string };
-        return err?.error?.error ?? err?.message ?? 'Request failed';
+        const err = error as
+            | {
+                  error?: { error?: string; detail?: string; title?: string; message?: string } | string;
+                  message?: string;
+                  status?: number;
+                  statusText?: string;
+              }
+            | undefined;
+
+        if (typeof err?.error === 'string' && err.error.trim()) {
+            return err.error;
+        }
+
+        if (err?.error && typeof err.error === 'object') {
+            const serverError = err.error.error?.trim();
+            const serverDetail = err.error.detail?.trim();
+            const serverTitle = err.error.title?.trim();
+            const serverMessage = err.error.message?.trim();
+
+            if (serverError && serverDetail) {
+                return `${serverError} ${serverDetail}`;
+            }
+
+            if (serverError) return serverError;
+            if (serverDetail) return serverDetail;
+            if (serverTitle) return serverTitle;
+            if (serverMessage) return serverMessage;
+        }
+
+        if (err?.message?.trim()) {
+            return err.message;
+        }
+
+        if (typeof err?.status === 'number') {
+            return `Request failed (${err.status}${err.statusText ? ` ${err.statusText}` : ''})`;
+        }
+
+        return 'Request failed';
     }
 }

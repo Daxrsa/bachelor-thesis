@@ -10,6 +10,8 @@ public sealed record ProductRequest(
     int Quantity,
     string InventoryStatus,
     string? Category,
+    string? ImageFileName,
+    string? ImageUrl,
     string? Image,
     int Rating)
 {
@@ -23,7 +25,9 @@ public sealed record ProductRequest(
         Quantity = Quantity,
         InventoryStatus = InventoryStatus,
         Category = Category,
-        Image = Image,
+        ImageFileName = ImageFileName,
+        ImageUrl = ImageUrl,
+        Image = ImageFileName ?? Image,
         Rating = Rating
     };
 
@@ -36,7 +40,9 @@ public sealed record ProductRequest(
         product.Quantity = Quantity;
         product.InventoryStatus = InventoryStatus;
         product.Category = Category;
-        product.Image = Image;
+        product.ImageFileName = ImageFileName;
+        product.ImageUrl = ImageUrl;
+        product.Image = ImageFileName ?? Image;
         product.Rating = Rating;
     }
 }
