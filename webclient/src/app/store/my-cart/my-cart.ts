@@ -51,13 +51,8 @@ interface CartRow {
                     </div>
                 </div>
 
-                <div class="text-right">
-                    <p class="m-0 font-semibold">{{ totalUnits() }} item(s)</p>
-                    <p class="m-0 text-surface-500 dark:text-surface-400">Estimated total: {{ estimatedTotal() | currency: 'USD' }}</p>
-                 </div>
-
                 <div *ngIf="hasToken && !loading && !error && cart && cart.items.length > 0" class="card border border-surface-200 dark:border-surface-700">
-                    <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
                         <p class="m-0 text-surface-500 dark:text-surface-400"></p>
                     </div>
 
@@ -138,6 +133,11 @@ interface CartRow {
                             </tr>
                         </ng-template>
                     </p-table>
+
+                    <div class="text-right flex gap-3 mt-4 flex-row justify-end">
+                        <p class="m-0 font-semibold">{{ totalUnits() }} item(s)</p>
+                        <p class="m-0 text-surface-500 dark:text-surface-400">Calculated total: {{ estimatedTotal() | currency: 'USD' }}</p>
+                    </div>
                 </div>
                 <p-button
                     variant="outlined"

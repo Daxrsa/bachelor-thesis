@@ -13,6 +13,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
+import { cartItemCount, ProductService } from '@/app/pages/service/product.service';
 
 @Component({
     selector: 'app-store-layout',
@@ -30,6 +31,7 @@ import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
         InputIconModule,
         InputTextModule
     ],
+    providers: [ProductService],
     template: `
         <div class="w-full mx-auto p-4 md:p-6 pb-0">
             <p-toolbar styleClass="rounded-xl shadow-sm">
@@ -53,7 +55,15 @@ import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
                         <span *ngIf="currentUserEmail" class="hidden md:inline text-sm text-surface-600 dark:text-surface-300">{{ currentUserEmail }}</span>
                         <p-button *ngIf="!currentUserEmail" label="Login" icon="pi pi-sign-in" severity="secondary" [outlined]="true" [routerLink]="['/auth/login']"></p-button>
                         <p-button label="Products" icon="pi pi-th-large" severity="secondary" [outlined]="true" [routerLink]="['/store/products']"></p-button>
-                        <p-button icon="pi pi-shopping-cart" [outlined]="true" [routerLink]="['/store/my-cart']"></p-button>
+                        <div class="relative">
+                            <p-button icon="pi pi-shopping-cart" [outlined]="true" [routerLink]="['/store/my-cart']"></p-button>
+                            <span
+                                *ngIf="cartItemCount() > 0"
+                                class="absolute -top-2 -left-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-contrast text-xs font-semibold flex items-center justify-center pointer-events-none"
+                            >
+                                {{ cartItemCount() }}
+                            </span>
+                        </div>
                         <p-button *ngIf="currentUserEmail" icon="pi pi-sign-out" severity="secondary" [outlined]="true" (onClick)="logout()"></p-button>
                     </div>
                 </ng-template>
@@ -70,11 +80,13 @@ export class StoreLayout implements OnInit {
 
     searchTerm = '';
     currentUserEmail: string | null = null;
+    readonly cartItemCount = cartItemCount;
 
     constructor(
         private http: HttpClient,
         private cdr: ChangeDetectorRef,
-        private router: Router
+        private router: Router,
+        private productService: ProductService
     ) { }
 
     ngOnInit() {
@@ -85,6 +97,7 @@ export class StoreLayout implements OnInit {
         const token = localStorage.getItem(TOKEN_STORAGE_KEY);
         if (!token) {
             this.currentUserEmail = null;
+            cartItemCount.set(0);
             this.cdr.detectChanges();
             return;
         }
@@ -97,11 +110,14 @@ export class StoreLayout implements OnInit {
         } finally {
             this.cdr.detectChanges();
         }
+
+        await this.productService.refreshCartItemCount();
     }
 
     logout() {
         localStorage.removeItem(TOKEN_STORAGE_KEY);
         this.currentUserEmail = null;
+        cartItemCount.set(0);
         this.cdr.detectChanges();
         void this.router.navigate(['/store']);
     }

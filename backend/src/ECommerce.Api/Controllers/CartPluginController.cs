@@ -37,6 +37,26 @@ public sealed class CartPluginController(IPluginService plugins, IHttpClientFact
         await ForwardAsync($"carts/{userId}", ct);
     }
 
+    [HttpGet("me/items/count")]
+    [EndpointSummary("Count the items in the authenticated user's cart")]
+    [EndpointDescription("Returns the total number of units across all lines in the authenticated user's cart, or 0 when no cart exists.")]
+    [ProducesResponseType(typeof(CartItemCountResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task GetItemCount(CancellationToken ct)
+    {
+        var userId = GetAuthenticatedUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await Response.WriteAsJsonAsync(new { error = "Authenticated user ID is missing" }, ct);
+            return;
+        }
+
+        await ForwardAsync($"carts/{userId}/items/count", ct);
+    }
+
     [HttpDelete("me")]
     [EndpointSummary("Delete the authenticated user's cart")]
     [EndpointDescription("Deletes the entire cart for the authenticated user if it exists.")]
@@ -192,6 +212,8 @@ public sealed record CartResponse(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
     IReadOnlyList<CartItemResponse> Items);
+
+public sealed record CartItemCountResponse(int Count);
 
 public sealed record CartItemResponse(
     string Id,

@@ -6,6 +6,7 @@ namespace CartPlugin.Application.Carts;
 public interface ICartService
 {
     Task<Cart?> GetByUserIdAsync(string userId, CancellationToken cancellationToken);
+    Task<int> CountItemsAsync(string userId, CancellationToken cancellationToken);
     Task<bool> DeleteByUserIdAsync(string userId, CancellationToken cancellationToken);
     Task<Cart> HandleProductAddedToCartEventAsync(
         IntegrationEventEnvelope<ProductAddedToCartEvent> envelope,
@@ -33,6 +34,16 @@ public sealed class CartService(ICartRepository repository) : ICartService
 
     public Task<Cart?> GetByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         repository.GetByUserIdAsync(userId, cancellationToken);
+
+    /// <summary>Total number of units across all cart lines; 0 when the user has no cart.</summary>
+    public async Task<int> CountItemsAsync(string userId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("Counting cart items requires a valid userId");
+
+        var cart = await repository.GetByUserIdAsync(userId, cancellationToken);
+        return cart?.Items.Sum(item => item.Quantity) ?? 0;
+    }
 
     public async Task<Cart> HandleProductAddedToCartEventAsync(
         IntegrationEventEnvelope<ProductAddedToCartEvent> envelope,

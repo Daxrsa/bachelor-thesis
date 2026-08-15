@@ -44,6 +44,20 @@ public static class CartEndpoints
             return cart is null ? Results.NotFound(new { error = "Cart not found" }) : Results.Ok(cart.ToResponse());
         });
 
+        app.MapGet("/carts/{userId}/items/count", async (HttpContext context, string userId, ICartService service, CancellationToken cancellationToken) =>
+        {
+            var resolvedUserId = ResolveUserId(context, userId);
+            var count = await service.CountItemsAsync(resolvedUserId, cancellationToken);
+            return Results.Ok(new { count });
+        });
+
+        app.MapGet("/carts/me/items/count", async (HttpContext context, ICartService service, CancellationToken cancellationToken) =>
+        {
+            var userId = ResolveUserId(context);
+            var count = await service.CountItemsAsync(userId, cancellationToken);
+            return Results.Ok(new { count });
+        });
+
         app.MapDelete("/carts/{userId}", async (HttpContext context, string userId, ICartService service, CancellationToken cancellationToken) =>
         {
             var resolvedUserId = ResolveUserId(context, userId);

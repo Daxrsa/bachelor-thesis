@@ -93,6 +93,8 @@ export class Login {
     private readonly route = inject(ActivatedRoute);
     private readonly apiBase = 'http://localhost:8080';
 
+    logoUrl = '/demo/images/logo.webp';
+
     email: string = '';
 
     firstName: string = '';

@@ -218,7 +218,7 @@ export class StoreHome implements OnInit {
     constructor(private productService: ProductService) {}
 
     ngOnInit() {
-        this.productService.getProducts().then((products) => {
+        this.productService.getStoreProducts().then((products) => {
             const electronics = products.filter((product) => product.category === 'Electronics');
             const source = electronics.length ? electronics : products;
 

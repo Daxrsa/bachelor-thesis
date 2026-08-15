@@ -143,7 +143,7 @@ import {Product, ProductService} from '@/app/pages/service/product.service';
     </div>`,
     providers: [ConfirmationService, MessageService, ProductService]
 })
-export class OverlayDemo implements OnInit {
+export class OverlayDemo {
     display: boolean = false;
 
     products: Product[] = [];
@@ -167,10 +167,6 @@ export class OverlayDemo implements OnInit {
         private confirmationService: ConfirmationService,
         private messageService: MessageService
     ) {}
-
-    ngOnInit() {
-        this.productService.getProductsSmall().then((products) => (this.products = products));
-    }
 
     confirm(event: Event) {
         this.confirmationService.confirm({
