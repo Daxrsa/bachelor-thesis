@@ -18,5 +18,8 @@
     "port": 5432,
     "volumeMountPath": "/var/lib/postgresql/data"
   },
+  "storage": {
+    "volumeMountPath": "/app/storage"
+  },
   "uiExtensions": {}
 }

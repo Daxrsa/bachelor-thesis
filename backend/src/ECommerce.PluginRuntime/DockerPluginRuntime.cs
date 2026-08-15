@@ -1,4 +1,3 @@
-using System.Net.Http;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using ECommerce.PluginContracts;
@@ -46,6 +45,14 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
                 NetworkMode = _opts.Network,
                 RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped }
             };
+
+            if (manifest.Storage is not null)
+            {
+                hostConfig.Binds = new List<string>
+                {
+                    $"{GetStorageVolumeName(manifest.Id)}:{manifest.Storage.VolumeMountPath}"
+                };
+            }
 
             // When the API runs on the host (dotnet watch), it cannot resolve container DNS names.
             // Publish a random host port so the API can call plugins via localhost.
@@ -232,6 +239,8 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
     private string GetDatabaseContainerName(string pluginId) => $"{_opts.ContainerPrefix}{pluginId}-db";
 
     private string GetDatabaseVolumeName(string pluginId) => $"{_opts.ContainerPrefix}{pluginId}-data";
+
+    private string GetStorageVolumeName(string pluginId) => $"{_opts.ContainerPrefix}{pluginId}-storage";
 
     private async Task<bool> ImageExistsLocallyAsync(string image, CancellationToken ct)
     {

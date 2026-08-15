@@ -63,6 +63,19 @@ export interface ProductsPluginGreetingResponse {
     from: string;
 }
 
+export interface PaymentResponse {
+    id: string;
+    userId: string;
+    correlationId: string;
+    amount: number;
+    currencyCode: string;
+    status: string;
+    paymentMethod: string;
+    providerReference?: string | null;
+    failureReason?: string | null;
+    createdAtUtc: string;
+}
+
 @Injectable()
 export class ProductService {
     private readonly apiBase = 'http://localhost:8080';
@@ -159,6 +172,10 @@ export class ProductService {
 
     getMyCartItemCount() {
         return firstValueFrom(this.http.get<{ count?: number }>(`${this.apiBase}/api/p/cart-plugin/carts/me/items/count`));
+    }
+
+    getMyPayments() {
+        return firstValueFrom(this.http.get<PaymentResponse[]>(`${this.apiBase}/api/p/payment-plugin/payments/me`));
     }
 
     /** Cart mutations are queued as events, so a delay lets the consumer apply them before re-reading. */

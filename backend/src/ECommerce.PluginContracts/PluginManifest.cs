@@ -30,6 +30,9 @@ public sealed class PluginManifest
     /// <summary>Optional database sidecar owned by this plugin.</summary>
     public PluginDatabaseManifest? Database { get; init; }
 
+    /// <summary>Optional persistent storage volume mounted into the plugin container.</summary>
+    public PluginStorageManifest? Storage { get; init; }
+
     /// <summary>Optional UI extension points (slot => remote entry URL) surfaced to the Angular shell.</summary>
     public IReadOnlyDictionary<string, string> UiExtensions { get; init; } =
         new Dictionary<string, string>();
@@ -48,4 +51,10 @@ public sealed class PluginDatabaseManifest
     public string Password { get; init; } = "plugin";
     public int Port { get; init; } = 5432;
     public string VolumeMountPath { get; init; } = "/var/lib/postgresql/data";
+}
+
+public sealed class PluginStorageManifest
+{
+    /// <summary>Absolute path inside the plugin container backed by a Docker named volume.</summary>
+    public string VolumeMountPath { get; init; } = "/app/storage";
 }

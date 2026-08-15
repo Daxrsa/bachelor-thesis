@@ -25,6 +25,7 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
         return user is null ? NotFound() : Ok(user);
     }
 
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] Credentials body, CancellationToken ct)
     {
@@ -34,6 +35,7 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
             : BadRequest(new { error = res.Error });
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] Credentials body, CancellationToken ct)
     {
