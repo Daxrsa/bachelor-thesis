@@ -38,12 +38,6 @@ function createDefaultProductFilters(): ProductFilters {
     imports: [CommonModule, FormsModule, ButtonModule, SliderModule],
     template: `
         <aside class="card flex flex-col gap-6 lg:sticky lg:top-24">
-            <div class="flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-surface-500 dark:text-surface-400 uppercase tracking-wide text-xs m-0">Filters</p>
-                </div>
-                <p-button icon="pi pi-filter-slash" [rounded]="true" [text]="true" severity="secondary" (onClick)="resetFilters()"></p-button>
-            </div>
 
             <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between gap-3">
@@ -207,9 +201,9 @@ export class ProductFilterSidebar implements OnChanges {
                                 </ng-template>
 
                                 <ng-template #grid let-items>
-                                    <div class="grid grid-cols-12 gap-4">
+                                    <div class="grid grid-cols-12 ">
                                         <div *ngFor="let item of items" class="col-span-12 sm:col-span-6 lg:col-span-4 p-2">
-                                            <div class="p-6 border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 rounded flex flex-col h-full">
+                                            <div class="p-4 border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 rounded flex flex-col h-full">
                                                 <div class="relative w-full shadow-sm">
                                                     <img class="rounded w-full" [src]="imageUrl(item)" [alt]="item.name" />
                                                     <div class="absolute bg-black/70 rounded-border" [style]="{ left: '4px', top: '4px' }">

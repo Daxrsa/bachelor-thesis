@@ -23,8 +23,8 @@ public sealed record ProductRequest(
         Description = Description,
         Price = Price,
         Quantity = Quantity,
-        InventoryStatus = InventoryStatus,
-        Category = Category,
+        InventoryStatus = ParseInventoryStatus(InventoryStatus),
+        Category = ParseCategory(Category),
         ImageFileName = ImageFileName,
         ImageUrl = ImageUrl,
         Image = ImageFileName ?? Image,
@@ -38,11 +38,17 @@ public sealed record ProductRequest(
         product.Description = Description;
         product.Price = Price;
         product.Quantity = Quantity;
-        product.InventoryStatus = InventoryStatus;
-        product.Category = Category;
+        product.InventoryStatus = ParseInventoryStatus(InventoryStatus);
+        product.Category = ParseCategory(Category);
         product.ImageFileName = ImageFileName;
         product.ImageUrl = ImageUrl;
         product.Image = ImageFileName ?? Image;
         product.Rating = Rating;
     }
+
+    private static InventoryStatus ParseInventoryStatus(string? value) =>
+        Enum.TryParse<InventoryStatus>(value, ignoreCase: true, out var parsed) ? parsed : Domain.Entities.InventoryStatus.Outofstock;
+
+    private static ProductCategory ParseCategory(string? value) =>
+        Enum.TryParse<ProductCategory>(value, ignoreCase: true, out var parsed) ? parsed : ProductCategory.Electronics;
 }

@@ -25,12 +25,8 @@ interface CartRow {
             <section class="max-w-6xl mx-auto flex flex-col gap-3">
                 <div class="flex items-center justify-between gap-3 flex-wrap">
                     <p-button icon="pi pi-arrow-left" label="Back to store" severity="secondary" [outlined]="true" [routerLink]="['/store']"></p-button>
-                    <p-button label="Browse products" icon="pi pi-th-large" [routerLink]="['/store/products']"></p-button>
+                    <p-button variant="outlined" label="Browse products" icon="pi pi-th-large" [routerLink]="['/store/products']"></p-button>
                 </div>
-
-                    <div class="flex items-center justify-between flex-wrap">
-                        <p-button icon="pi pi-refresh" label="Refresh" severity="secondary" [outlined]="true" [loading]="loading" (onClick)="loadCart()"></p-button>
-                    </div>
 
                 <div *ngIf="!hasToken" class="card border border-amber-300 bg-amber-50 dark:bg-amber-900/20">
                     <p class="m-0 text-amber-700 dark:text-amber-300"><b>You are not logged in.</b> Please login to view your cart.</p>
@@ -143,6 +139,14 @@ interface CartRow {
                         </ng-template>
                     </p-table>
                 </div>
+                <p-button
+                    variant="outlined"
+                    severity="help"
+                    *ngIf="hasToken && cart && cart.items.length > 0"
+                    icon="pi pi-credit-card"
+                    label="Proceed to payment"
+                    [routerLink]="['/store/checkout']"
+                ></p-button>
             </section>
         </div>
     `

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { StoreCheckout } from './checkout/checkout';
 import { StoreMyCart } from './my-cart/my-cart';
 import { StoreLayout } from './store-layout/store-layout';
 import { StoreProducts } from './products/products';
@@ -12,6 +13,7 @@ export const storeRoutes: Routes = [
         children: [
             { path: '', component: StoreHome, pathMatch: 'full' },
             { path: 'my-cart', component: StoreMyCart },
+            { path: 'checkout', component: StoreCheckout },
             { path: 'products/:id', component: StoreProductDetails },
             { path: 'products', component: StoreProducts },
             { path: '**', redirectTo: '' }

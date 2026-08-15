@@ -17,7 +17,15 @@ public sealed class EfProductRepository(ProductsDbContext db) : IProductReposito
             query = query.Where(product => product.Price <= filter.MaxPrice);
 
         if (filter.Availability is { Length: > 0 })
-            query = query.Where(product => filter.Availability.Contains(product.InventoryStatus));
+        {
+            var statuses = filter.Availability
+                .Select(value => Enum.TryParse<InventoryStatus>(value, ignoreCase: true, out var parsed) ? parsed : (InventoryStatus?)null)
+                .Where(status => status is not null)
+                .Select(status => status!.Value)
+                .ToArray();
+
+            query = query.Where(product => statuses.Contains(product.InventoryStatus));
+        }
 
         return await query.OrderBy(product => product.Name).ToListAsync(cancellationToken);
     }

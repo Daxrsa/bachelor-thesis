@@ -8,8 +8,8 @@ public sealed class Product
     public string? Description { get; set; }
     public decimal Price { get; set; }
     public int Quantity { get; set; }
-    public required string InventoryStatus { get; set; }
-    public string? Category { get; set; }
+    public InventoryStatus InventoryStatus { get; set; }
+    public ProductCategory Category { get; set; }
     public string? ImageFileName { get; set; }
     public string? ImageUrl { get; set; }
     public string? Image { get; set; }
