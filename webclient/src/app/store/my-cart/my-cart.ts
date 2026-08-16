@@ -56,15 +56,15 @@ interface CartRow {
                         <p class="m-0 text-surface-500 dark:text-surface-400"></p>
                     </div>
 
-                    <p-table [value]="rows" responsiveLayout="scroll">
+                    <p-table [value]="rows" responsiveLayout="scroll" [tableStyle]="{ width: '100%', 'table-layout': 'fixed' }">
                         <ng-template pTemplate="header">
                             <tr>
-                                <th>Product</th>
-                                <th>Unit Price</th>
-                                <th>Quantity</th>
-                                <th>Subtotal</th>
-                                <th>Added</th>
-                                <th style="min-width: 280px">Actions</th>
+                                <th style="width: 32%">Product</th>
+                                <th style="width: 12%">Unit Price</th>
+                                <th style="width: 10%">Quantity</th>
+                                <th style="width: 12%">Subtotal</th>
+                                <th style="width: 16%">Added</th>
+                                <th style="width: 20%; min-width: 280px">Actions</th>
                             </tr>
                         </ng-template>
                         <ng-template pTemplate="body" let-row>

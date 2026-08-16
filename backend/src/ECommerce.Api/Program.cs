@@ -189,6 +189,21 @@ static void LoadDotEnvIfPresent()
         var existing = Environment.GetEnvironmentVariable(key);
         if (string.IsNullOrEmpty(existing))
             Environment.SetEnvironmentVariable(key, value);
+
+        // Keep the Stripe secret aligned with both naming conventions used across the app:
+        // .env uses Stripe__SecretKey while the plugin runtime expects PluginRuntime__StripeSecretKey.
+        if (string.Equals(key, "Stripe__SecretKey", StringComparison.OrdinalIgnoreCase))
+        {
+            var runtimeKeyValue = Environment.GetEnvironmentVariable("PluginRuntime__StripeSecretKey");
+            if (string.IsNullOrWhiteSpace(runtimeKeyValue))
+                Environment.SetEnvironmentVariable("PluginRuntime__StripeSecretKey", value);
+        }
+        else if (string.Equals(key, "PluginRuntime__StripeSecretKey", StringComparison.OrdinalIgnoreCase))
+        {
+            var stripeKeyValue = Environment.GetEnvironmentVariable("Stripe__SecretKey");
+            if (string.IsNullOrWhiteSpace(stripeKeyValue))
+                Environment.SetEnvironmentVariable("Stripe__SecretKey", value);
+        }
     }
 }
 

@@ -226,6 +226,9 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         if (!string.IsNullOrWhiteSpace(_opts.StripeSecretKey))
             env.Add($"Stripe__SecretKey={_opts.StripeSecretKey}");
 
+        if (!string.IsNullOrWhiteSpace(_opts.StripeWebhookSecret))
+            env.Add($"STRIPE_WEBHOOK_SECRET={_opts.StripeWebhookSecret}");
+
         if (databaseEndpoint is null)
             return env;
 

@@ -31,4 +31,7 @@ public sealed class PluginRuntimeOptions
 
     /// <summary>Stripe test/secret key forwarded to payment-plugin container as Stripe__SecretKey.</summary>
     public string StripeSecretKey { get; set; } = string.Empty;
+
+    /// <summary>Stripe webhook signing secret forwarded to payment-plugin as STRIPE_WEBHOOK_SECRET.</summary>
+    public string StripeWebhookSecret { get; set; } = string.Empty;
 }

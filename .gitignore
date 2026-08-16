@@ -29,3 +29,5 @@ node_modules/
 graphify-out
 
 .env
+
+backend/plugins/payment-plugin/appsettings.json

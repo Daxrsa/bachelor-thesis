@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using PaymentPlugin.Infrastructure.Persistence;
 
 namespace PaymentPlugin.Infrastructure;
@@ -14,6 +15,24 @@ public sealed class PaymentsDatabaseInitializer(PaymentsDbContext db)
             try
             {
                 await db.Database.EnsureCreatedAsync(cancellationToken);
+                await db.Database.ExecuteSqlRawAsync(
+                    """
+                    CREATE TABLE IF NOT EXISTS "StripeWebhookEvents" (
+                        "EventId" varchar(128) PRIMARY KEY,
+                        "EventType" varchar(128) NOT NULL,
+                        "ProviderReference" varchar(128) NULL,
+                        "CustomerId" varchar(128) NULL,
+                        "CustomerEmail" varchar(320) NULL,
+                        "Amount" numeric(12,2) NULL,
+                        "CurrencyCode" varchar(8) NULL,
+                        "Status" varchar(64) NULL,
+                        "StripeCreatedAtUtc" timestamp with time zone NOT NULL,
+                        "ReceivedAtUtc" timestamp with time zone NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS "IX_StripeWebhookEvents_ReceivedAtUtc"
+                        ON "StripeWebhookEvents" ("ReceivedAtUtc");
+                    """,
+                    cancellationToken);
                 return;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

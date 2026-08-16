@@ -86,6 +86,41 @@ public sealed class PaymentPluginController(IPluginService plugins, IHttpClientF
 		await SendAsync(forward, ct);
 	}
 
+	[HttpPost("webhook")]
+	[AllowAnonymous]
+	[EndpointSummary("Receive Stripe webhook events")]
+	[EndpointDescription("Forwards Stripe's raw webhook payload and signature to the payment plugin for verification.")]
+	[Consumes("application/json")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+	public async Task StripeWebhook(CancellationToken ct)
+	{
+		var target = await ResolveTargetAsync(PluginId, "webhooks/stripe", ct);
+		if (target is null)
+			return;
+
+		using var forward = new HttpRequestMessage(HttpMethod.Post, target)
+		{
+			Content = new StreamContent(Request.Body)
+		};
+
+		if (!string.IsNullOrWhiteSpace(Request.ContentType))
+			forward.Content.Headers.TryAddWithoutValidation("Content-Type", Request.ContentType);
+
+		forward.Headers.TryAddWithoutValidation("Stripe-Signature", Request.Headers["Stripe-Signature"].ToString());
+		await SendAsync(forward, ct);
+	}
+
+	[HttpGet("webhook-events")]
+	[EndpointSummary("Get recorded Stripe webhook events")]
+	[EndpointDescription("Returns the latest verified Stripe webhook events recorded by the payment plugin.")]
+	[ProducesResponseType(typeof(StripeWebhookResponse[]), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+	public Task GetStripeWebhookEvents(CancellationToken ct) =>
+		ForwardAsync("webhooks/stripe/events", ct);
+
 	private async Task ForwardAsync(string path, CancellationToken ct)
 	{
 		var target = await ResolveTargetAsync(PluginId, path, ct);
@@ -151,6 +186,18 @@ public sealed record PaymentResponse(
 	string? ProviderReference,
 	string? FailureReason,
 	DateTimeOffset CreatedAtUtc);
+
+public sealed record StripeWebhookResponse(
+	string EventId,
+	string EventType,
+	string? ProviderReference,
+	string? CustomerId,
+	string? CustomerEmail,
+	decimal? Amount,
+	string? CurrencyCode,
+	string? Status,
+	DateTimeOffset StripeCreatedAtUtc,
+	DateTimeOffset ReceivedAtUtc);
 
 public sealed record PayCartRequest(
 	string CurrencyCode,

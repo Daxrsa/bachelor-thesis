@@ -243,6 +243,7 @@ services:
       PluginRuntime__BrokerPassword: "ecommerce"
       PluginRuntime__BrokerVirtualHost: "/"
       PluginRuntime__StripeSecretKey: "${Stripe__SecretKey}"
+      PluginRuntime__StripeWebhookSecret: "${STRIPE_WEBHOOK_SECRET}"
       Cors__Origins__0: "http://localhost:4200"
     ports:
       - "8080:8080"

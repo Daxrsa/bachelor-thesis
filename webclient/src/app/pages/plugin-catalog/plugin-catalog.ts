@@ -191,7 +191,8 @@ export class PluginCatalog implements OnInit {
 
     dashboardRoute(pluginId: string): string | null {
         return {
-            'products-plugin': '/plugin-catalog/products-plugin'
+            'products-plugin': '/plugin-catalog/products-plugin',
+            'payment-plugin': '/plugin-catalog/payment-plugin'
         }[pluginId] ?? null;
     }
 

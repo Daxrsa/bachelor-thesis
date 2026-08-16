@@ -76,6 +76,19 @@ export interface PaymentResponse {
     createdAtUtc: string;
 }
 
+export interface StripeWebhookResponse {
+    eventId: string;
+    eventType: string;
+    providerReference?: string | null;
+    customerId?: string | null;
+    customerEmail?: string | null;
+    amount?: number | null;
+    currencyCode?: string | null;
+    status?: string | null;
+    stripeCreatedAtUtc: string;
+    receivedAtUtc: string;
+}
+
 @Injectable()
 export class ProductService {
     private readonly apiBase = 'http://localhost:8080';
@@ -175,7 +188,19 @@ export class ProductService {
     }
 
     getMyPayments() {
-        return firstValueFrom(this.http.get<PaymentResponse[]>(`${this.apiBase}/api/p/payment-plugin/payments/me`));
+        return firstValueFrom(
+            this.http.get<PaymentResponse[]>(`${this.apiBase}/api/p/payment-plugin/payments/me`).pipe(
+                tap((payments) => console.log('[ProductService] getMyPayments:', payments))
+            )
+        );
+    }
+
+    getStripeWebhookEvents() {
+        return firstValueFrom(
+            this.http.get<StripeWebhookResponse[]>(`${this.apiBase}/api/p/payment-plugin/payments/webhook-events`).pipe(
+                tap((events) => console.log('[ProductService] getStripeWebhookEvents:', events))
+            )
+        );
     }
 
     /** Cart mutations are queued as events, so a delay lets the consumer apply them before re-reading. */

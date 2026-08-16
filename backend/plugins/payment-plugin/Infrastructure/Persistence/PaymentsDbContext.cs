@@ -7,6 +7,7 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
 {
     public DbSet<PaymentRecord> Payments => Set<PaymentRecord>();
     public DbSet<ProductPriceProjection> ProductPrices => Set<ProductPriceProjection>();
+    public DbSet<StripeWebhookRecord> StripeWebhookEvents => Set<StripeWebhookRecord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -34,6 +35,21 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
             entity.Property(price => price.ProductId).HasMaxLength(64);
             entity.Property(price => price.CurrencyCode).HasMaxLength(8).IsRequired();
             entity.Property(price => price.Price).HasPrecision(12, 2);
+        });
+
+        builder.Entity<StripeWebhookRecord>(entity =>
+        {
+            entity.ToTable("StripeWebhookEvents");
+            entity.HasKey(webhook => webhook.EventId);
+            entity.Property(webhook => webhook.EventId).HasMaxLength(128);
+            entity.Property(webhook => webhook.EventType).HasMaxLength(128).IsRequired();
+            entity.Property(webhook => webhook.ProviderReference).HasMaxLength(128);
+            entity.Property(webhook => webhook.CustomerId).HasMaxLength(128);
+            entity.Property(webhook => webhook.CustomerEmail).HasMaxLength(320);
+            entity.Property(webhook => webhook.Amount).HasPrecision(12, 2);
+            entity.Property(webhook => webhook.CurrencyCode).HasMaxLength(8);
+            entity.Property(webhook => webhook.Status).HasMaxLength(64);
+            entity.HasIndex(webhook => webhook.ReceivedAtUtc);
         });
     }
 }
