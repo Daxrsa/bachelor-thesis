@@ -1,13 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
+import { firstValueFrom } from 'rxjs';
 import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
-import { CartItemResponse, CartResponse, Product, ProductService } from '@/app/pages/service/product.service';
+import { CartItemResponse, CartResponse, Product, ProductService, PaymentResponse } from '@/app/pages/service/product.service';
 
 interface CheckoutRow {
     item: CartItemResponse;
@@ -55,7 +57,6 @@ interface CheckoutRow {
                     <p class="text-green-700 dark:text-green-300">
                         Charged {{ total() | currency: 'USD' }} to card ending in {{ last4 }}. Reference: <b>{{ reference }}</b>
                     </p>
-                    <p class="m-0 text-xs text-surface-500 dark:text-surface-400">Simulated payment. No backend call was made.</p>
                     <div class="mt-4">
                         <p-button label="Back to store" icon="pi pi-home" [routerLink]="['/store']"></p-button>
                     </div>
@@ -181,7 +182,9 @@ interface CheckoutRow {
 })
 export class StoreCheckout implements OnInit {
     private readonly productService = inject(ProductService);
+    private readonly http = inject(HttpClient);
     private readonly cdr = inject(ChangeDetectorRef);
+    private readonly apiBase = 'http://localhost:8080';
 
     hasToken = false;
     loading = false;
@@ -303,24 +306,37 @@ export class StoreCheckout implements OnInit {
         this.paying = true;
         this.cdr.detectChanges();
 
-        // Simulated authorization until the payment plugin endpoint is wired up.
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        try {
+            const response = await firstValueFrom(
+                this.http.post<PaymentResponse>(
+                    `${this.apiBase}/api/p/payment-plugin/payments/me/pay`,
+                    {
+                        currencyCode: 'usd',
+                        paymentMethod: 'card',
+                        correlationId: null
+                    }
+                )
+            );
 
-        this.last4 = this.cardDigits().slice(-4);
-        this.reference = `PAY-${Date.now().toString(36).toUpperCase()}`;
-        this.paid = true;
-        this.paying = false;
+            this.last4 = this.cardDigits().slice(-4);
+            this.reference = response.id;
+            this.paid = true;
+        } catch (e: any) {
+            this.payError = e?.error?.error ?? e?.error?.message ?? e?.message ?? 'Payment failed. Please try again.';
+        } finally {
+            this.paying = false;
 
-        this.cardName = '';
-        this.cardNumber = '';
-        this.expMonth = null;
-        this.expYear = null;
-        this.cvv = '';
-        this.billingZip = '';
-        this.submitted = false;
-        form.resetForm();
+            this.cardName = '';
+            this.cardNumber = '';
+            this.expMonth = null;
+            this.expYear = null;
+            this.cvv = '';
+            this.billingZip = '';
+            this.submitted = false;
+            form.resetForm();
 
-        this.cdr.detectChanges();
+            this.cdr.detectChanges();
+        }
     }
 
     subtotal() {
