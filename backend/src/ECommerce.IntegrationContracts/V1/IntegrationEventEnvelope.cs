@@ -31,5 +31,6 @@ public sealed record EventResourceIds
     public string? ProductId { get; init; }
     public string? CartId { get; init; }
     public string? UserId { get; init; }
+    public string? PaymentId { get; init; }
     public string? OrderId { get; init; }
 }

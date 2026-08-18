@@ -185,7 +185,8 @@ export class PluginCatalog implements OnInit {
             'products-plugin': 'products/greeting',
             'cart-plugin': 'cart/greeting',
             'payment-plugin': 'payment/greeting',
-            'files-plugin': 'files/greeting'
+            'files-plugin': 'files/greeting',
+            'order-plugin': 'orders/greeting'
         }[pluginId] ?? null;
     }
 

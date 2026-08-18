@@ -37,8 +37,8 @@ a shared network, and proxies HTTP traffic to them under `/api/p/{pluginId}/…`
 ```bash
 cd backend
 docker compose up -d registry
-docker compose --profile plugin-images build hello-plugin-image products-plugin-image cart-plugin-image payment-plugin-image
-docker compose --profile plugin-images push hello-plugin-image products-plugin-image cart-plugin-image payment-plugin-image
+docker compose --profile plugin-images build hello-plugin-image products-plugin-image cart-plugin-image payment-plugin-image order-plugin-image
+docker compose --profile plugin-images push hello-plugin-image products-plugin-image cart-plugin-image payment-plugin-image order-plugin-image
 ```
 
 Quick check:
@@ -99,6 +99,12 @@ Runtime rules:
 - Plugin binds `0.0.0.0:<containerPort>` inside its container.
 - Plugin is reachable **only through the core** (`/api/p/{id}/…`).
 - The core forwards the caller identity via `X-User-Id` / `X-User-Email` headers.
+- Installed plugins are reconciled when the core starts. Healthy compatible
+  containers are reused, stopped containers are restarted, and incompatible
+  containers are recreated without deleting their named data volumes.
+- Plugin host names and published ports are runtime-derived. The core refreshes
+  them automatically when switching between Docker Compose and `dotnet watch`,
+  so plugins do not need to be reinstalled after an application restart.
 
 ## Security model
 

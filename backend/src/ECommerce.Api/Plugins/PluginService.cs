@@ -16,6 +16,7 @@ public interface IPluginService
     Task<PluginInstallation> InstallAsync(string pluginId, IReadOnlyList<string> grantedPermissions, CancellationToken ct);
     Task UninstallAsync(string pluginId, CancellationToken ct);
     Task<(PluginInstallation Install, PluginManifest Manifest)?> ResolveAsync(string pluginId, CancellationToken ct);
+    string BuildTarget(PluginInstallation installation, string path, string queryString);
 }
 
 public sealed record MarketplaceEntry(PluginManifest Manifest, bool Installed);
@@ -119,4 +120,7 @@ public sealed class PluginService : IPluginService
         if (manifest is null) return null;
         return (install, manifest);
     }
+
+    public string BuildTarget(PluginInstallation installation, string path, string queryString)
+        => $"http://{installation.ContainerName}:{installation.ContainerPort}/{path.TrimStart('/')}{queryString}";
 }

@@ -6,6 +6,7 @@ namespace ECommerce.PluginRuntime;
 public interface IPluginRuntime
 {
     Task<RunningPlugin> StartAsync(PluginManifest manifest, CancellationToken ct = default);
+    Task<RunningPlugin> ReconcileAsync(PluginManifest manifest, CancellationToken ct = default);
     Task StopAsync(string pluginId, CancellationToken ct = default);
     Task<bool> IsRunningAsync(string pluginId, CancellationToken ct = default);
 }

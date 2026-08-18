@@ -40,14 +40,23 @@ public sealed class PaymentService(
         if (envelope.Payload.Items.Count == 0)
             throw new InvalidOperationException("CartCheckoutRequested requires at least one line item");
 
-        decimal amount = 0m;
+        var paidItems = new List<PaidLineItem>();
         foreach (var item in envelope.Payload.Items)
         {
+            if (item.Quantity <= 0)
+                throw new InvalidOperationException("CartCheckoutRequested contains an invalid line quantity");
+
             var product = await productPriceRepository.GetByProductIdAsync(item.ProductId, cancellationToken)
                 ?? throw new InvalidOperationException($"Missing projected price for product {item.ProductId}");
 
-            amount += product.Price * item.Quantity;
+            if (!string.Equals(product.CurrencyCode, envelope.Payload.CurrencyCode, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Product {item.ProductId} uses currency {product.CurrencyCode}, not {envelope.Payload.CurrencyCode}");
+
+            var lineTotal = product.Price * item.Quantity;
+            paidItems.Add(new PaidLineItem(item.ProductId, item.Quantity, product.Price, lineTotal));
         }
+
+        var amount = paidItems.Sum(item => item.LineTotal);
 
         var paymentId = Guid.NewGuid().ToString("N");
         var gatewayResult = await paymentGateway.ChargeAsync(
@@ -90,6 +99,7 @@ public sealed class PaymentService(
                     UserId = userId,
                     ProductId = null,
                     CartId = envelope.ResourceIds.CartId,
+                    PaymentId = payment.Id,
                     OrderId = envelope.ResourceIds.OrderId
                 },
                 Payload = new PaymentSucceededEvent(
@@ -97,6 +107,8 @@ public sealed class PaymentService(
                     gatewayResult.ProviderReference,
                     payment.Amount,
                     payment.CurrencyCode,
+                    payment.PaymentMethod,
+                    paidItems,
                     DateTimeOffset.UtcNow)
             };
 
@@ -117,6 +129,7 @@ public sealed class PaymentService(
                 UserId = userId,
                 ProductId = null,
                 CartId = envelope.ResourceIds.CartId,
+                PaymentId = payment.Id,
                 OrderId = envelope.ResourceIds.OrderId
             },
             Payload = new PaymentFailedEvent(

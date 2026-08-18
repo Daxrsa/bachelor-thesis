@@ -102,6 +102,67 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
         }
     }
 
+    public async Task<RunningPlugin> ReconcileAsync(PluginManifest manifest, CancellationToken ct = default)
+    {
+        var containerName = _opts.ContainerPrefix + manifest.Id;
+        var coreRunsInContainer = File.Exists("/.dockerenv");
+
+        try
+        {
+            await EnsureNetworkAsync(ct);
+            var container = await FindContainerAsync(containerName, ct);
+            if (container is null)
+                return await StartAsync(manifest, ct);
+
+            var inspect = await _docker.Containers.InspectContainerAsync(container.ID, ct);
+            if (!IsCompatible(inspect, manifest, coreRunsInContainer))
+            {
+                _log.LogInformation("Recreating plugin {Plugin} for the current runtime topology", manifest.Id);
+                return await StartAsync(manifest, ct);
+            }
+
+            if (manifest.Database is not null)
+            {
+                var database = await FindContainerAsync(GetDatabaseContainerName(manifest.Id), ct);
+                if (database is null)
+                    return await StartAsync(manifest, ct);
+
+                var databaseInspect = await _docker.Containers.InspectContainerAsync(database.ID, ct);
+                if (!IsDatabaseCompatible(databaseInspect, manifest.Database))
+                    return await StartAsync(manifest, ct);
+
+                if (!string.Equals(database.State, "running", StringComparison.OrdinalIgnoreCase))
+                {
+                    var databaseStarted = await _docker.Containers.StartContainerAsync(database.ID, new ContainerStartParameters(), ct);
+                    if (!databaseStarted)
+                        throw new InvalidOperationException($"Failed to restart database for plugin {manifest.Id}");
+                }
+            }
+
+            if (!string.Equals(container.State, "running", StringComparison.OrdinalIgnoreCase))
+            {
+                var started = await _docker.Containers.StartContainerAsync(container.ID, new ContainerStartParameters(), ct);
+                if (!started)
+                    throw new InvalidOperationException($"Failed to restart container for plugin {manifest.Id}");
+            }
+
+            var resolved = await ResolveReachableEndpointAsync(
+                container.ID,
+                containerName,
+                manifest.ContainerPort,
+                coreRunsInContainer,
+                ct);
+            await WaitForHealthyAsync(resolved.Host, resolved.Port, manifest, ct);
+
+            return new RunningPlugin(manifest.Id, containerName, resolved.Host, resolved.Port);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogWarning(ex, "Could not reuse plugin {Plugin}; recreating its containers", manifest.Id);
+            return await StartAsync(manifest, ct);
+        }
+    }
+
     public async Task StopAsync(string pluginId, CancellationToken ct = default)
     {
         var name = _opts.ContainerPrefix + pluginId;
@@ -260,6 +321,47 @@ public sealed class DockerPluginRuntime : IPluginRuntime, IDisposable
             return (image[..idx], image[(idx + 1)..]);
         return (image, "latest");
     }
+
+    private async Task<ContainerListResponse?> FindContainerAsync(string containerName, CancellationToken ct)
+    {
+        var list = await _docker.Containers.ListContainersAsync(new ContainersListParameters
+        {
+            All = true,
+            Filters = new Dictionary<string, IDictionary<string, bool>>
+            {
+                ["name"] = new Dictionary<string, bool> { [containerName] = true }
+            }
+        }, ct);
+
+        return list.FirstOrDefault(container => HasExactName(container, containerName));
+    }
+
+    private bool IsCompatible(ContainerInspectResponse container, PluginManifest manifest, bool coreRunsInContainer)
+    {
+        if (!string.Equals(container.Config?.Image, manifest.Image, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (container.Config?.Labels is null ||
+            !container.Config.Labels.TryGetValue("ecommerce.plugin.version", out var version) ||
+            !string.Equals(version, manifest.Version, StringComparison.Ordinal))
+            return false;
+
+        if (container.NetworkSettings?.Networks?.ContainsKey(_opts.Network) != true)
+            return false;
+
+        if (coreRunsInContainer)
+            return true;
+
+        var portKey = $"{manifest.ContainerPort}/tcp";
+        return container.NetworkSettings?.Ports is not null &&
+               container.NetworkSettings.Ports.TryGetValue(portKey, out var bindings) &&
+               bindings is { Count: > 0 } &&
+               !string.IsNullOrWhiteSpace(bindings[0].HostPort);
+    }
+
+    private bool IsDatabaseCompatible(ContainerInspectResponse container, PluginDatabaseManifest database)
+        => string.Equals(container.Config?.Image, database.Image, StringComparison.OrdinalIgnoreCase) &&
+           container.NetworkSettings?.Networks?.ContainsKey(_opts.Network) == true;
 
     private async Task RemoveIfExistsAsync(string containerName, CancellationToken ct)
     {

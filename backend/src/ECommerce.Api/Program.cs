@@ -83,6 +83,7 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddScoped<IPluginService, PluginService>();
 builder.Services.AddHttpClient("plugin-proxy");
+builder.Services.AddHostedService<PluginReconciliationHostedService>();
 
 // --- Web ---
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p

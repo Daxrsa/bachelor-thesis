@@ -14,6 +14,9 @@ public interface ICartService
     Task<Cart?> HandleProductRemovedFromCartEventAsync(
         IntegrationEventEnvelope<ProductRemovedFromCartEvent> envelope,
         CancellationToken cancellationToken);
+    Task HandleOrderCreatedAsync(
+        IntegrationEventEnvelope<OrderCreatedEvent> envelope,
+        CancellationToken cancellationToken);
 }
 
 public sealed class CartService(ICartRepository repository) : ICartService
@@ -127,6 +130,23 @@ public sealed class CartService(ICartRepository repository) : ICartService
         cart.UpdatedAtUtc = envelope.Payload.RemovedAtUtc;
         await repository.SaveChangesAsync(cancellationToken);
         return cart;
+    }
+
+    public async Task HandleOrderCreatedAsync(
+        IntegrationEventEnvelope<OrderCreatedEvent> envelope,
+        CancellationToken cancellationToken)
+    {
+        var userId = envelope.ResourceIds.UserId
+            ?? throw new InvalidOperationException("OrderCreatedEvent requires resourceIds.userId");
+        var cartId = envelope.ResourceIds.CartId
+            ?? throw new InvalidOperationException("OrderCreatedEvent requires resourceIds.cartId");
+
+        var cart = await repository.GetByUserIdAsync(userId, cancellationToken);
+        if (cart is null || !string.Equals(cart.Id, cartId, StringComparison.Ordinal))
+            return;
+
+        await repository.RemoveAsync(cart, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
     }
 }
 

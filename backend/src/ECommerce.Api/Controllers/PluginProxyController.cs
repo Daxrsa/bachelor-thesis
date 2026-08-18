@@ -42,23 +42,7 @@ public sealed class PluginProxyController(IPluginService svc, IHttpClientFactory
             return;
         }
 
-        var targetHost = install.ContainerName;
-        var isRunningInContainer = string.Equals(
-            Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-
-        if (isRunningInContainer &&
-            (string.Equals(targetHost, "localhost", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(targetHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(targetHost, "::1", StringComparison.OrdinalIgnoreCase)))
-        {
-            // Plugin installs created from a host-run API store localhost:<published-port>.
-            // When proxying from inside Docker, localhost resolves to this API container itself.
-            targetHost = "host.docker.internal";
-        }
-
-        var target = $"http://{targetHost}:{install.ContainerPort}/{path}{Request.QueryString}";
+        var target = _svc.BuildTarget(install, path ?? string.Empty, Request.QueryString.Value ?? string.Empty);
         var client = _http.CreateClient("plugin-proxy");
 
         using var forward = new HttpRequestMessage(new HttpMethod(Request.Method), target);

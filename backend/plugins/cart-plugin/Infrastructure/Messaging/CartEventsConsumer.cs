@@ -44,6 +44,7 @@ public sealed class CartEventsConsumer(
 
         await _channel.QueueBindAsync(RabbitMqTopology.CartQueueName, RabbitMqTopology.ExchangeName, EventNames.ProductAddedToCart, cancellationToken: stoppingToken);
         await _channel.QueueBindAsync(RabbitMqTopology.CartQueueName, RabbitMqTopology.ExchangeName, EventNames.ProductRemovedFromCart, cancellationToken: stoppingToken);
+        await _channel.QueueBindAsync(RabbitMqTopology.CartQueueName, RabbitMqTopology.ExchangeName, EventNames.OrderCreated, cancellationToken: stoppingToken);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += OnMessageReceivedAsync;
@@ -79,6 +80,15 @@ public sealed class CartEventsConsumer(
                     await using var scope = scopeFactory.CreateAsyncScope();
                     var cartService = scope.ServiceProvider.GetRequiredService<ICartService>();
                     await cartService.HandleProductRemovedFromCartEventAsync(envelope, CancellationToken.None);
+                    break;
+                }
+                case EventNames.OrderCreated:
+                {
+                    var envelope = JsonSerializer.Deserialize<IntegrationEventEnvelope<OrderCreatedEvent>>(json, JsonOptions)
+                        ?? throw new InvalidOperationException("Could not deserialize OrderCreatedEvent envelope");
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var cartService = scope.ServiceProvider.GetRequiredService<ICartService>();
+                    await cartService.HandleOrderCreatedAsync(envelope, CancellationToken.None);
                     break;
                 }
                 default:

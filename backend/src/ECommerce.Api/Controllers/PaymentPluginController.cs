@@ -149,7 +149,7 @@ public sealed class PaymentPluginController(IPluginService plugins, IHttpClientF
 			return null;
 		}
 
-		return $"http://{install.ContainerName}:{install.ContainerPort}/{path}{Request.QueryString}";
+		return _plugins.BuildTarget(install, path, Request.QueryString.Value ?? string.Empty);
 	}
 
 	private async Task SendAsync(HttpRequestMessage forward, CancellationToken ct)

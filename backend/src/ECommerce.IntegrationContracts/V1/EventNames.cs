@@ -9,4 +9,5 @@ public static class EventNames
     public const string ProductDeleted = "product.deleted.v1";
     public const string PaymentSucceeded = "payment.succeeded.v1";
     public const string PaymentFailed = "payment.failed.v1";
+    public const string OrderCreated = "order.created.v1";
 }

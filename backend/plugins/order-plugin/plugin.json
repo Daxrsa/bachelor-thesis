@@ -1,0 +1,22 @@
+{
+  "id": "order-plugin",
+  "name": "Order Plugin",
+  "version": "0.1.0",
+  "description": "Creates immutable paid orders from payment-success events and exposes order history.",
+  "publisher": "example",
+  "image": "localhost:5000/ecommerce/order-plugin:0.1.0",
+  "containerPort": 8080,
+  "healthEndpoint": "/health",
+  "hostApi": "^1.0.0",
+  "permissions": [],
+  "database": {
+    "engine": "postgres",
+    "image": "postgres:16-alpine",
+    "databaseName": "orders",
+    "username": "orders",
+    "password": "orders",
+    "port": 5432,
+    "volumeMountPath": "/var/lib/postgresql/data"
+  },
+  "uiExtensions": {}
+}
