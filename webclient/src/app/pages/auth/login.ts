@@ -74,8 +74,8 @@ import { TOKEN_STORAGE_KEY } from '../../auth/token-storage';
                                     [disabled]="!canSubmit()"
                                     (onClick)="submit()"
                                 ></p-button>
-                                <button pButton pRipple type="button" class="w-full p-button-text" (click)="setLoginMode(false)" *ngIf="isLogin">Already have an account?</button>
-                                <button pButton pRipple type="button" class="w-full p-button-text" (click)="setLoginMode(true)" *ngIf="!isLogin">Back to sign in</button>
+                                <button pButton pRipple type="button" class="w-full p-button-text" (click)="setLoginMode(false)" *ngIf="isLogin">Register here</button>
+                                <button pButton pRipple type="button" class="w-full p-button-text" (click)="setLoginMode(true)" *ngIf="!isLogin">Login here</button>
                             </div>
 
                             <small class="text-green-600 block mt-4" *ngIf="statusMessage">{{ statusMessage }}</small>

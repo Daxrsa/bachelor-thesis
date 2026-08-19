@@ -37,25 +37,31 @@ function createDefaultProductFilters(): ProductFilters {
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, SliderModule],
     template: `
-        <aside class="card flex flex-col gap-6 lg:sticky lg:top-24">
-
-            <div class="flex flex-col gap-3">
-                <div class="flex items-center justify-between gap-3">
-                    <span class="font-medium">Price</span>
-                    <span class="text-sm text-surface-500 dark:text-surface-400">{{ priceRange[0] | currency: 'USD' : 'symbol' : '1.0-0' }} - {{ priceRange[1] | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
-                </div>
-                <p-slider [(ngModel)]="priceRange" [range]="true" [min]="priceBounds[0]" [max]="priceBounds[1]" (ngModelChange)="onPriceRangeChange()" styleClass="mt-2"></p-slider>
-                <div class="flex items-center justify-between text-xs text-surface-500 dark:text-surface-400">
-                    <span>{{ priceBounds[0] | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
-                    <span>{{ priceBounds[1] | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
-                </div>
+        <aside class="flex flex-col gap-6 border border-surface-200 bg-surface-0 p-5 shadow-sm dark:border-surface-700 dark:bg-surface-900 lg:sticky lg:top-24">
+            <div class="flex justify-end border-b border-surface-200 pb-3 dark:border-surface-700">
+                <p-button icon="pi pi-refresh" ariaLabel="Reset filters" severity="secondary" [text]="true" size="small" (onClick)="resetFilters()"></p-button>
             </div>
 
-            <div class="flex flex-col gap-3">
-                <span class="font-medium">Availability</span>
-                <label *ngFor="let option of availabilityOptions" class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" class="h-4 w-4 accent-primary" [checked]="selectedAvailability.includes(option.value)" (change)="toggleAvailability(option.value, $any($event.target).checked)" />
-                    <span>{{ option.label }}</span>
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="font-bold text-surface-900 dark:text-surface-0">Price</span>
+                    <span class="text-xs font-medium text-surface-500">USD</span>
+                </div>
+                <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <div class="rounded-md border border-surface-200 bg-surface-50 px-3 py-2 text-sm font-semibold text-surface-900 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-0">{{ priceRange[0] | currency: 'USD' : 'symbol' : '1.0-0' }}</div>
+                    <span class="text-xs text-surface-400">to</span>
+                    <div class="rounded-md border border-surface-200 bg-surface-50 px-3 py-2 text-right text-sm font-semibold text-surface-900 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-0">{{ priceRange[1] | currency: 'USD' : 'symbol' : '1.0-0' }}</div>
+                </div>
+                <p-slider [(ngModel)]="priceRange" [range]="true" [min]="priceBounds[0]" [max]="priceBounds[1]" (ngModelChange)="onPriceRangeChange()" styleClass="my-1"></p-slider>
+                <div class="flex justify-between text-xs text-surface-500 dark:text-surface-400"><span>Min {{ priceBounds[0] | currency: 'USD' : 'symbol' : '1.0-0' }}</span><span>Max {{ priceBounds[1] | currency: 'USD' : 'symbol' : '1.0-0' }}</span></div>
+            </div>
+
+            <div class="flex flex-col gap-3 border-t border-surface-200 pt-5 dark:border-surface-700">
+                <span class="font-bold text-surface-900 dark:text-surface-0">Availability</span>
+                <label *ngFor="let option of availabilityOptions" class="flex cursor-pointer items-center gap-3 rounded-md border border-transparent px-3 py-2.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800" [ngClass]="{ 'border-teal-200 bg-teal-50 dark:border-teal-800 dark:bg-teal-950': selectedAvailability.includes(option.value) }">
+                    <input type="checkbox" class="h-4 w-4 accent-teal-700" [checked]="selectedAvailability.includes(option.value)" (change)="toggleAvailability(option.value, $any($event.target).checked)" />
+                    <span class="flex-1 text-sm font-medium">{{ option.label }}</span>
+                    <i *ngIf="selectedAvailability.includes(option.value)" class="pi pi-check text-xs text-teal-700"></i>
                 </label>
             </div>
         </aside>
@@ -120,12 +126,6 @@ export class ProductFilterSidebar implements OnChanges {
     template: `
         <div class="p-4 md:p-6 xl:p-8">
             <section class="max-w-7xl mx-auto">
-                <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                    <div>
-                        <p class="text-surface-500 dark:text-surface-400 uppercase tracking-wide text-xs">Store</p>
-                    </div>
-                    <p class="m-0 text-surface-600 dark:text-surface-300">{{ loading ? 'Loading...' : filteredProducts.length + ' items' }}</p>
-                </div>
 
                 <div *ngIf="error" class="card border border-red-300 text-red-600 mb-6">
                     <b>Error:</b> {{ error }}
@@ -137,12 +137,12 @@ export class ProductFilterSidebar implements OnChanges {
                     </div>
 
                     <div class="col-span-12 lg:col-span-9">
-                        <div class="card">
+                        <div class="border border-surface-200 bg-surface-0 p-2 shadow-sm dark:border-surface-700 dark:bg-surface-900 md:p-4">
                             <p-dataview [value]="filteredProducts" [layout]="layout">
                                 <ng-template #header>
-                                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                        <span class="text-sm text-surface-500 dark:text-surface-400">Showing {{ filteredProducts.length }} of {{ products.length }} products</span>
-                                        <p-select-button [(ngModel)]="layout" [options]="layoutOptions" [allowEmpty]="false">
+                                    <div class="mb-2 flex flex-col gap-3 border-b border-surface-200 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-surface-700">
+                                        <span class="text-sm font-medium text-surface-500 dark:text-surface-400">Showing <strong class="text-surface-900 dark:text-surface-0">{{ filteredProducts.length }}</strong> of {{ products.length }} products</span>
+                                        <p-select-button [(ngModel)]="layout" [options]="layoutOptions" [allowEmpty]="false" styleClass="shrink-0">
                                             <ng-template #item let-option>
                                                 <i class="pi" [ngClass]="{ 'pi-bars': option === 'list', 'pi-table': option === 'grid' }"></i>
                                             </ng-template>

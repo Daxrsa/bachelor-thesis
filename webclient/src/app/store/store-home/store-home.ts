@@ -1,240 +1,141 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
 import { CarouselModule } from 'primeng/carousel';
-import { ChipModule } from 'primeng/chip';
-import { DividerModule } from 'primeng/divider';
-import { GalleriaModule } from 'primeng/galleria';
-import { InputTextModule } from 'primeng/inputtext';
-import { RatingModule } from 'primeng/rating';
 import { TagModule } from 'primeng/tag';
 import { Product, ProductService } from '@/app/pages/service/product.service';
 
 interface StoreCategory {
     name: string;
-    description: string;
-    icon: string;
-}
-
-interface StoreBenefit {
-    title: string;
-    text: string;
-    icon: string;
+    count: number;
 }
 
 @Component({
     selector: 'app-store-home',
     standalone: true,
-    imports: [
-        CommonModule,
-        FormsModule,
-        RouterModule,
-        ButtonModule,
-        CardModule,
-        CarouselModule,
-        GalleriaModule,
-        TagModule,
-        ChipModule,
-        RatingModule,
-        DividerModule,
-        InputTextModule
-    ],
+    imports: [CommonModule, RouterModule, ButtonModule, CarouselModule, TagModule],
     providers: [ProductService],
     template: `
-        <div class="w-full max-w-[95rem] mx-auto p-4 md:p-6 xl:p-8 flex flex-col gap-6">
-            <p-card styleClass="overflow-hidden">
-                <div class="grid grid-cols-12 gap-6 items-center">
-                    <div class="col-span-12 lg:col-span-6 flex flex-col gap-4">
-                        <h1 class="m-0 text-3xl md:text-5xl font-semibold leading-tight">Power Your Setup With Premium Electronics</h1>
-                        <p class="m-0 text-surface-600 dark:text-surface-300 text-lg">Discover flagship phones, high-performance laptops, smart home devices, and pro audio gear with fast delivery and trusted warranties.</p>
-                        <div class="flex flex-wrap gap-2">
-                            <p-chip label="Free shipping over $99" icon="pi pi-truck"></p-chip>
-                            <p-chip label="2-year warranty" icon="pi pi-shield"></p-chip>
-                            <p-chip label="24/7 support" icon="pi pi-headphones"></p-chip>
-                        </div>
-                        <div class="flex flex-wrap gap-3">
-                            <p-button label="Shop Products" icon="pi pi-arrow-right" [routerLink]="['/store/products']"></p-button>
-                            <p-button label="View Deals" icon="pi pi-percentage" severity="secondary" [outlined]="true"></p-button>
-                        </div>
-                    </div>
-                    <div class="col-span-12 lg:col-span-6">
-                        <p-galleria
-                            [value]="heroGalleryImages"
-                            [responsiveOptions]="heroGalleriaResponsiveOptions"
-                            [numVisible]="4"
-                            [showThumbnails]="true"
-                            thumbnailsPosition="bottom"
-                            [showIndicators]="false"
-                            [showItemNavigators]="false"
-                            [circular]="true"
-                            [autoPlay]="true"
-                            [transitionInterval]="3500"
-                            [containerStyle]="{ 'border-radius': '0.75rem', overflow: 'hidden' }"
-                        >
-                            <ng-template #item let-item>
-                                <img [src]="item.itemImageSrc" [alt]="item.alt" class="w-full h-[24rem] object-cover" />
-                            </ng-template>
-                            <ng-template #thumbnail let-item>
-                                <img [src]="item.itemImageSrc" [alt]="item.alt" class="w-full h-20 object-cover" />
-                            </ng-template>
-                        </p-galleria>
+        <main class="mx-auto max-w-[96rem] px-3 py-4 md:px-6 md:py-6 xl:px-8 xl:pb-16">
+            <section class="relative grid min-h-[34rem] overflow-hidden border-t-[5px] border-orange-500 bg-emerald-50 px-6 py-12 md:px-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12 lg:px-16 lg:py-20">
+                <div class="relative z-10 flex max-w-2xl flex-col items-start justify-center">
+                    <p class="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">A curated marketplace</p>
+                    <h1 class="m-0 font-serif text-5xl font-medium leading-[0.95] text-teal-950 md:text-6xl xl:text-7xl">Ecommerce store</h1>
+                    <p class="mt-6 max-w-xl text-lg leading-relaxed text-teal-900/80">A collection of products selected from a catalog</p>
+                    <div class="mt-8 flex flex-wrap items-center gap-4">
+                        <p-button label="Explore the collection" icon="pi pi-arrow-right" iconPos="right" [routerLink]="['/store/products']"></p-button>
                     </div>
                 </div>
-            </p-card>
 
-            <p-card>
-                <ng-template #title>Shop By Category</ng-template>
-                <ng-template #subtitle>Curated collections for every part of your setup</ng-template>
+                <div class="relative min-h-72 lg:min-h-0" aria-hidden="true">
+                    <div class="absolute inset-x-4 bottom-0 top-10 rounded-t-full bg-amber-300"></div>
+                    <article *ngIf="heroProducts[0] as product" class="absolute right-[6%] top-4 h-80 w-52 rotate-3 overflow-hidden border-8 border-white bg-white shadow-2xl md:w-64 lg:h-[24rem]">
+                        <img [src]="imageUrl(product)" [alt]="product.name || 'Featured product'" class="h-full w-full object-cover" />
+                        <div class="absolute inset-x-0 bottom-0 bg-white/95 p-3">
+                            <span class="block text-xs font-bold uppercase tracking-wider text-teal-700">{{ product.category || 'Collection' }}</span>
+                            <strong class="block truncate text-sm text-teal-950">{{ product.name || 'Featured product' }}</strong>
+                        </div>
+                    </article>
+                    <article *ngIf="heroProducts[1] as product" class="absolute bottom-1 left-0 h-36 w-28 -rotate-6 overflow-hidden border-8 border-white bg-white shadow-xl md:h-48 md:w-36">
+                        <img [src]="imageUrl(product)" [alt]="product.name || 'Featured product'" class="h-full w-full object-cover" />
+                    </article>
+                    <div *ngIf="loading" class="absolute inset-0 grid place-items-center text-3xl text-teal-700"><i class="pi pi-spin pi-spinner"></i></div>
+                </div>
+            </section>
 
-                <div class="grid grid-cols-12 gap-4 mt-2">
-                    <div *ngFor="let category of categories" class="col-span-12 sm:col-span-6 xl:col-span-3">
-                        <p-card styleClass="h-full">
-                            <div class="flex flex-col gap-3 h-full">
-                                <p-tag [value]="category.name" severity="contrast"></p-tag>
-                                <div class="text-2xl"><i class="pi" [ngClass]="category.icon"></i></div>
-                                <p class="m-0 text-surface-600 dark:text-surface-300">{{ category.description }}</p>
-                                <div class="mt-auto">
-                                    <p-button label="Browse" severity="secondary" [outlined]="true" [routerLink]="['/store/products']"></p-button>
+            <section class="pt-20">
+                <div class="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h2 class="m-0 font-serif text-2xl font-medium leading-none text-teal-950">Discover the collection</h2>
+                    </div>
+                    <p *ngIf="!loading" class="m-0 max-w-xs text-sm leading-relaxed text-surface-500 md:text-right">{{ products.length }} products, fetched from product service.</p>
+                </div>
+
+                <div *ngIf="loading" class="grid min-h-56 place-items-center bg-surface-50 text-surface-500"><span><i class="pi pi-spin pi-spinner mr-2"></i>Loading products...</span></div>
+                <div *ngIf="error" class="grid min-h-56 place-items-center bg-red-50 p-6 text-center text-red-700"><span><i class="pi pi-exclamation-circle mr-2"></i>{{ error }}</span></div>
+
+                <p-carousel *ngIf="!loading && !error && products.length" [autoplayInterval]="2000" [circular]="true" [value]="products" [numVisible]="4" [numScroll]="1" [responsiveOptions]="carouselResponsiveOptions" [showNavigators]="true" [showIndicators]="false" styleClass="product-carousel">
+                    <ng-template #item let-product>
+                        <a class="group mx-2 flex min-w-0 flex-col text-inherit no-underline" [routerLink]="product.id ? ['/store/products', product.id] : ['/store/products']">
+                            <div class="relative aspect-[1/1.08] overflow-hidden bg-surface-100">
+                                <img [src]="imageUrl(product)" [alt]="product.name || 'Product image'" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                <p-tag [value]="inventoryLabel(product.inventoryStatus)" [severity]="getSeverity(product.inventoryStatus)" styleClass="absolute left-3 top-3"></p-tag>
+                            </div>
+                            <div class="flex flex-1 flex-col px-1 pt-4">
+                                <span class="text-xs font-bold uppercase tracking-wider text-teal-700">{{ product.category || 'Uncategorized' }}</span>
+                                <h3 class="mb-2 mt-1 min-h-11 font-sans text-base font-bold leading-snug text-teal-950">{{ product.name || 'Unnamed product' }}</h3>
+                                <p class="mb-4 line-clamp-2 min-h-10 text-sm leading-relaxed text-surface-500">{{ product.description || 'Explore product details and availability.' }}</p>
+                                <div class="mt-auto flex items-center justify-between gap-2">
+                                    <strong class="text-lg text-teal-950">{{ (product.price || 0) | currency: 'USD' }}</strong>
+                                    <span *ngIf="product.rating" class="text-sm font-bold text-amber-700"><i class="pi pi-star-fill mr-1 text-xs text-amber-500"></i>{{ product.rating | number: '1.1-1' }}</span>
                                 </div>
                             </div>
-                        </p-card>
-                    </div>
-                </div>
-            </p-card>
-
-            <p-card>
-                <ng-template #title>Featured Electronics</ng-template>
-                <ng-template #subtitle>Handpicked devices with top customer ratings</ng-template>
-
-                <p-carousel [value]="featuredProducts" [numVisible]="4" [numScroll]="1" [circular]="false" [responsiveOptions]="carouselResponsiveOptions">
-                    <ng-template #item let-product>
-                        <div class="p-2">
-                            <p-card styleClass="h-full">
-                                <div class="flex flex-col gap-3 h-full">
-                                    <div class="relative">
-                                        <img [src]="productImage(product)" [alt]="product.name || 'Product'" class="w-full rounded-lg" />
-                                        <div class="absolute" [ngStyle]="{ left: '8px', top: '8px' }">
-                                            <p-tag [value]="product.inventoryStatus || 'INSTOCK'" [severity]="getSeverity(product.inventoryStatus)"></p-tag>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-surface-500 dark:text-surface-400 text-sm">{{ product.category || 'Electronics' }}</div>
-                                        <div class="text-lg font-medium">{{ product.name || 'Unnamed Product' }}</div>
-                                    </div>
-                                    <p-rating [ngModel]="product.rating || 0" [readonly]="true"></p-rating>
-                                    <div class="flex items-center justify-between mt-auto">
-                                        <div class="text-2xl font-semibold">{{ (product.price || 0) | currency: 'USD' }}</div>
-                                        <p-button icon="pi pi-shopping-cart" [disabled]="product.inventoryStatus === 'OUTOFSTOCK'"></p-button>
-                                    </div>
-                                </div>
-                            </p-card>
-                        </div>
+                        </a>
                     </ng-template>
                 </p-carousel>
-            </p-card>
 
-            <p-card>
-                <ng-template #title>Why Customers Choose NEXTRONICS</ng-template>
-                <div class="grid grid-cols-12 gap-4 mt-2">
-                    <div *ngFor="let benefit of benefits" class="col-span-12 md:col-span-4">
-                        <p-card styleClass="h-full">
-                            <div class="flex flex-col gap-2">
-                                <p-tag [value]="benefit.title" severity="success"></p-tag>
-                                <div class="text-2xl"><i class="pi" [ngClass]="benefit.icon"></i></div>
-                                <p class="m-0 text-surface-600 dark:text-surface-300">{{ benefit.text }}</p>
-                            </div>
-                        </p-card>
-                    </div>
+                <div *ngIf="!loading && !error && !products.length" class="grid min-h-56 place-items-center bg-surface-50 p-6 text-center text-surface-500">
+                    <div><i class="pi pi-box mb-3 block text-3xl text-teal-700"></i><h3 class="m-0 text-lg font-bold text-teal-950">The collection is being prepared.</h3><p class="mb-0 mt-2">Check back soon for products from the catalog.</p></div>
                 </div>
 
-                <p-divider></p-divider>
-
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                        <h3 class="m-0 text-xl font-semibold">Get Weekly Tech Drops</h3>
-                        <p class="m-0 text-surface-500 dark:text-surface-400">Deals, product launches, and members-only promo codes.</p>
-                    </div>
-                    <div class="flex gap-2 w-full md:w-auto">
-                        <input pInputText placeholder="Enter your email" class="w-full md:w-80" [(ngModel)]="newsletterEmail" />
-                        <p-button label="Subscribe" icon="pi pi-send"></p-button>
-                    </div>
-                </div>
-            </p-card>
-        </div>
+            </section>
+        </main>
     `
 })
 export class StoreHome implements OnInit {
-    newsletterEmail = '';
+    products: Product[] = [];
+    loading = true;
+    error = '';
 
-    featuredProducts: Product[] = [];
-
-    heroGalleryImages: Array<{ itemImageSrc: string; alt: string }> = [];
-
-    categories: StoreCategory[] = [
-        { name: 'Laptops', description: 'Ultrabooks, gaming rigs, and creator-grade machines.', icon: 'pi-desktop' },
-        { name: 'Smartphones', description: 'Latest flagship phones with advanced camera systems.', icon: 'pi-mobile' },
-        { name: 'Audio', description: 'Wireless earbuds, headsets, and immersive home audio.', icon: 'pi-headphones' },
-        { name: 'Gaming', description: 'Consoles, controllers, and RGB-ready accessories.', icon: 'pi-microchip' }
-    ];
-
-    benefits: StoreBenefit[] = [
-        { title: 'Certified Devices', text: 'Every product is tested and sourced from authorized distributors.', icon: 'pi-verified' },
-        { title: 'Fast Fulfillment', text: 'Same-day dispatch for most products with live tracking updates.', icon: 'pi-send' },
-        { title: 'Expert Support', text: 'Real tech specialists help with setup, upgrades, and troubleshooting.', icon: 'pi-comments' }
-    ];
+    constructor(
+        private readonly productService: ProductService,
+        private readonly changeDetectorRef: ChangeDetectorRef
+    ) {}
 
     carouselResponsiveOptions = [
-        {
-            breakpoint: '1280px',
-            numVisible: 3,
-            numScroll: 1
-        },
-        {
-            breakpoint: '1024px',
-            numVisible: 2,
-            numScroll: 1
-        },
-        {
-            breakpoint: '640px',
-            numVisible: 1,
-            numScroll: 1
-        }
+        { breakpoint: '1280px', numVisible: 3, numScroll: 1 },
+        { breakpoint: '900px', numVisible: 2, numScroll: 1 },
+        { breakpoint: '600px', numVisible: 1, numScroll: 1 }
     ];
 
-    heroGalleriaResponsiveOptions = [
-        {
-            breakpoint: '1024px',
-            numVisible: 2
-        },
-        {
-            breakpoint: '640px',
-            numVisible: 1
+    get heroProducts(): Product[] {
+        return this.products.slice(0, 2);
+    }
+
+    get categories(): StoreCategory[] {
+        const counts = new Map<string, number>();
+        for (const product of this.products) {
+            const category = product.category?.trim() || 'Uncategorized';
+            counts.set(category, (counts.get(category) ?? 0) + 1);
         }
-    ];
 
-    constructor(private productService: ProductService) {}
-
-    ngOnInit() {
-        this.productService.getStoreProducts().then((products) => {
-            const electronics = products.filter((product) => product.category === 'Electronics');
-            const source = electronics.length ? electronics : products;
-
-            this.featuredProducts = source.slice(0, 8);
-            this.heroGalleryImages = products.slice(0, 14).map((product) => ({
-                itemImageSrc: this.productImage(product),
-                alt: product.name || 'Electronics product'
-            }));
-        });
+        return [...counts.entries()]
+            .map(([name, count]) => ({ name, count }))
+            .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+            .slice(0, 4);
     }
 
-    productImage(product: Product) {
-        return `https://primefaces.org/cdn/primeng/images/demo/product/${product.image || 'placeholder.png'}`;
+    async ngOnInit(): Promise<void> {
+        try {
+            this.products = await this.productService.getStoreProducts();
+        } catch {
+            this.error = 'We could not load the catalog right now. Please try again shortly.';
+        } finally {
+            this.loading = false;
+            this.changeDetectorRef.detectChanges();
+        }
     }
 
-    getSeverity(status?: string) {
+    imageUrl(product: Product): string {
+        return this.productService.imageUrl(product) ?? '/demo/images/product/placeholder.svg';
+    }
+
+    inventoryLabel(status?: string): string {
+        return status === 'INSTOCK' ? 'In stock' : status === 'LOWSTOCK' ? 'Low stock' : status === 'OUTOFSTOCK' ? 'Sold out' : 'Available';
+    }
+
+    getSeverity(status?: string): 'success' | 'warn' | 'danger' | 'info' {
         switch (status) {
             case 'INSTOCK':
                 return 'success';

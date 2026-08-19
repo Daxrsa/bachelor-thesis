@@ -33,12 +33,12 @@ import { cartItemCount, ProductService } from '@/app/pages/service/product.servi
     ],
     providers: [ProductService],
     template: `
-        <div class="w-full mx-auto p-4 md:p-6 pb-0">
+        <div class="mx-auto max-w-[96rem] p-4 md:p-6 pb-0">
             <p-toolbar styleClass="rounded-xl shadow-sm">
                 <ng-template #start>
                     <div class="flex items-center gap-3">
                         <div class="flex items-center h-14">
-                            <img [src]="logoUrl" alt="Logo" class="h-full w-auto object-contain" />
+                            <img [src]="logoUrl" alt="Logo" class="h-full w-auto object-contain" [routerLink]="['/store']" />
                         </div>
                     </div>
                 </ng-template>
