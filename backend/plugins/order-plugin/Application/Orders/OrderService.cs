@@ -27,9 +27,10 @@ public sealed class OrderService(IOrderRepository repository, IOrderEventPublish
     {
         var userId = Require(envelope.ResourceIds.UserId, "PaymentSucceeded requires resourceIds.userId");
         var cartId = Require(envelope.ResourceIds.CartId, "PaymentSucceeded requires resourceIds.cartId");
-        var paymentId = Require(envelope.ResourceIds.PaymentId, "PaymentSucceeded requires resourceIds.paymentId");
+        var paymentId = Require(envelope.Payload.PaymentId, "PaymentSucceeded requires payload.paymentId");
 
-        if (!string.Equals(paymentId, envelope.Payload.PaymentId, StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(envelope.ResourceIds.PaymentId) &&
+            !string.Equals(paymentId, envelope.ResourceIds.PaymentId, StringComparison.Ordinal))
             throw new InvalidOperationException("PaymentSucceeded payment ID does not match resourceIds.paymentId");
         if (envelope.Payload.Items.Count == 0)
             throw new InvalidOperationException("PaymentSucceeded requires at least one paid line item");

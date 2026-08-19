@@ -76,6 +76,28 @@ export interface PaymentResponse {
     createdAtUtc: string;
 }
 
+export interface OrderItemResponse {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+}
+
+export interface OrderResponse {
+    id: string;
+    userId: string;
+    cartId: string;
+    paymentId: string;
+    status: string;
+    totalAmount: number;
+    currencyCode: string;
+    paymentMethod: string;
+    providerReference: string;
+    paidAtUtc: string;
+    createdAtUtc: string;
+    items: OrderItemResponse[];
+}
+
 export interface StripeWebhookResponse {
     eventId: string;
     eventType: string;
@@ -193,6 +215,10 @@ export class ProductService {
                 tap((payments) => console.log('[ProductService] getMyPayments:', payments))
             )
         );
+    }
+
+    getMyOrders() {
+        return firstValueFrom(this.http.get<OrderResponse[]>(`${this.apiBase}/api/p/order-plugin/orders/me`));
     }
 
     getStripeWebhookEvents() {

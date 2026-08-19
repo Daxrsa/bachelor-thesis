@@ -7,7 +7,7 @@ public sealed class Order
     public required string CartId { get; set; }
     public required string PaymentId { get; set; }
     public required string CorrelationId { get; set; }
-    public required string Status { get; set; }
+    public required OrderStatus OrderStatus { get; set; }
     public decimal TotalAmount { get; set; }
     public required string CurrencyCode { get; set; }
     public required string PaymentMethod { get; set; }
@@ -25,4 +25,12 @@ public sealed class OrderItem
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
+}
+
+public enum OrderStatus
+{
+    Processed,
+    Accepted,
+    Dispatched, 
+    Completed
 }

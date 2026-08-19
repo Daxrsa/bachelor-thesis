@@ -57,6 +57,14 @@ import { cartItemCount, ProductService } from '@/app/pages/service/product.servi
                         <p-button label="Products" icon="pi pi-th-large" severity="secondary" [outlined]="true" [routerLink]="['/store/products']"></p-button>
                         <p-button
                             *ngIf="currentUserEmail"
+                            label="Orders"
+                            icon="pi pi-receipt"
+                            severity="secondary"
+                            [outlined]="true"
+                            [routerLink]="['/store/my-orders']"
+                        ></p-button>
+                        <p-button
+                            *ngIf="currentUserEmail"
                             label="Payments"
                             icon="pi pi-credit-card"
                             severity="secondary"

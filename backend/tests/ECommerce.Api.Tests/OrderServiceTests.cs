@@ -46,6 +46,22 @@ public sealed class OrderServiceTests
             service.HandlePaymentSucceededAsync(payment, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task HandlePaymentSucceededAsync_UsesPayloadPaymentIdWhenResourceIdIsMissing()
+    {
+        var repository = new FakeOrderRepository();
+        var service = new OrderService(repository, new FakeOrderEventPublisher());
+        var payment = CreatePaymentSucceeded("payment-1", "checkout-1") with
+        {
+            ResourceIds = new EventResourceIds { UserId = "user-1", CartId = "cart-1" }
+        };
+
+        var order = await service.HandlePaymentSucceededAsync(payment, CancellationToken.None);
+
+        Assert.Equal("payment-1", order.PaymentId);
+        Assert.Single(repository.Orders);
+    }
+
     private static IntegrationEventEnvelope<PaymentSucceededEvent> CreatePaymentSucceeded(string paymentId, string correlationId) => new()
     {
         EventName = EventNames.PaymentSucceeded,
