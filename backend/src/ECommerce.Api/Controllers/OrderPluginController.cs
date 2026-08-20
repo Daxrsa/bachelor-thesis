@@ -13,6 +13,9 @@ public sealed class OrderPluginController(IPluginService plugins, IHttpClientFac
 {
     private const string PluginId = "order-plugin";
 
+    [HttpGet]
+    public Task ListOrders(CancellationToken ct) => ForwardAsync("orders", ct);
+
     [HttpGet("me")]
     public Task ListMyOrders(CancellationToken ct) => ForwardAsync("orders/me", ct);
 
@@ -22,7 +25,14 @@ public sealed class OrderPluginController(IPluginService plugins, IHttpClientFac
     [HttpGet("me/{orderId}")]
     public Task GetMyOrder(string orderId, CancellationToken ct) => ForwardAsync($"orders/me/{orderId}", ct);
 
-    private async Task ForwardAsync(string path, CancellationToken ct)
+    [HttpPatch("{orderId}/status")]
+    public Task UpdateOrderStatus(string orderId, [FromBody] UpdateOrderStatusRequest request, CancellationToken ct) =>
+        ForwardAsync($"orders/{orderId}/status", HttpMethod.Patch, request, ct);
+
+    private Task ForwardAsync(string path, CancellationToken ct) =>
+        ForwardAsync(path, HttpMethod.Get, body: null, ct);
+
+    private async Task ForwardAsync(string path, HttpMethod method, object? body, CancellationToken ct)
     {
         var resolved = await plugins.ResolveAsync(PluginId, ct);
         if (resolved is null)
@@ -40,7 +50,10 @@ public sealed class OrderPluginController(IPluginService plugins, IHttpClientFac
             return;
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, plugins.BuildTarget(installation, path, Request.QueryString.Value ?? string.Empty));
+        using var request = new HttpRequestMessage(method, plugins.BuildTarget(installation, path, Request.QueryString.Value ?? string.Empty));
+        if (body is not null)
+            request.Content = JsonContent.Create(body);
+
         var userId = User.FindFirst("sub")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         request.Headers.TryAddWithoutValidation("X-User-Id", userId);
         request.Headers.TryAddWithoutValidation("X-User-Email", User.FindFirst("email")?.Value ?? string.Empty);
@@ -54,3 +67,5 @@ public sealed class OrderPluginController(IPluginService plugins, IHttpClientFac
         await upstream.Content.CopyToAsync(Response.Body, ct);
     }
 }
+
+public sealed record UpdateOrderStatusRequest(string Status);

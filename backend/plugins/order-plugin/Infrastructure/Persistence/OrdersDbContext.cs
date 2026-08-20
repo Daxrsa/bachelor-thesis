@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OrderPlugin.Domain.Entities;
 
 namespace OrderPlugin.Infrastructure.Persistence;
@@ -7,6 +8,10 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
 {
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
+    private static readonly ValueConverter<OrderStatus, string> OrderStatusConverter = new(
+        status => status.ToString(),
+        value => ParseOrderStatus(value));
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -19,7 +24,11 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
             entity.Property(order => order.CartId).HasMaxLength(64).IsRequired();
             entity.Property(order => order.PaymentId).HasMaxLength(64).IsRequired();
             entity.Property(order => order.CorrelationId).HasMaxLength(128).IsRequired();
-            entity.Property(order => order.Status).HasMaxLength(32).IsRequired();
+            entity.Property(order => order.OrderStatus)
+                .HasColumnName("Status")
+                .HasConversion(OrderStatusConverter)
+                .HasMaxLength(32)
+                .IsRequired();
             entity.Property(order => order.CurrencyCode).HasMaxLength(8).IsRequired();
             entity.Property(order => order.PaymentMethod).HasMaxLength(32).IsRequired();
             entity.Property(order => order.ProviderReference).HasMaxLength(128).IsRequired();
@@ -41,4 +50,12 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
             entity.Property(item => item.LineTotal).HasPrecision(12, 2);
         });
     }
+
+    private static OrderStatus ParseOrderStatus(string value) =>
+        value switch
+        {
+            "Paid" => OrderStatus.Processed,
+            _ when Enum.TryParse<OrderStatus>(value, true, out var status) => status,
+            _ => OrderStatus.Processed
+        };
 }

@@ -9,8 +9,10 @@ public interface IOrderRepository
 {
     Task AddAsync(Order order, CancellationToken cancellationToken);
     Task<Order?> GetByPaymentIdAsync(string paymentId, CancellationToken cancellationToken);
+    Task<Order?> GetByIdAsync(string orderId, CancellationToken cancellationToken);
     Task<Order?> GetByIdForUserAsync(string orderId, string userId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Order>> ListByUserIdAsync(string userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
 
@@ -19,6 +21,8 @@ public interface IOrderService
     Task<Order> HandlePaymentSucceededAsync(IntegrationEventEnvelope<PaymentSucceededEvent> envelope, CancellationToken cancellationToken);
     Task<Order?> GetByIdForUserAsync(string orderId, string userId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Order>> ListByUserIdAsync(string userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken cancellationToken);
+    Task<Order?> UpdateStatusAsync(string orderId, string status, CancellationToken cancellationToken);
 }
 
 public sealed class OrderService(IOrderRepository repository, IOrderEventPublisher eventPublisher) : IOrderService
@@ -52,7 +56,7 @@ public sealed class OrderService(IOrderRepository repository, IOrderEventPublish
             CartId = cartId,
             PaymentId = paymentId,
             CorrelationId = envelope.CorrelationId,
-            Status = "Paid",
+            OrderStatus = OrderStatus.Processed,
             TotalAmount = envelope.Payload.Amount,
             CurrencyCode = envelope.Payload.CurrencyCode,
             PaymentMethod = envelope.Payload.PaymentMethod,
@@ -107,6 +111,37 @@ public sealed class OrderService(IOrderRepository repository, IOrderEventPublish
 
     public Task<IReadOnlyList<Order>> ListByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         repository.ListByUserIdAsync(userId, cancellationToken);
+
+    public Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken cancellationToken) =>
+        repository.ListAllAsync(cancellationToken);
+
+    public async Task<Order?> UpdateStatusAsync(string orderId, string status, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+            throw new InvalidOperationException("Order ID is required");
+
+        if (!TryParseStatus(status, out var orderStatus))
+            throw new InvalidOperationException("Invalid order status");
+
+        var order = await repository.GetByIdAsync(orderId, cancellationToken);
+        if (order is null)
+            return null;
+
+        order.OrderStatus = orderStatus;
+        await repository.SaveChangesAsync(cancellationToken);
+        return order;
+    }
+
+    private static bool TryParseStatus(string status, out OrderStatus orderStatus)
+    {
+        if (string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase))
+        {
+            orderStatus = OrderStatus.Processed;
+            return true;
+        }
+
+        return Enum.TryParse(status, ignoreCase: true, out orderStatus) && Enum.IsDefined(orderStatus);
+    }
 
     private static string Require(string? value, string error) =>
         string.IsNullOrWhiteSpace(value) ? throw new InvalidOperationException(error) : value;

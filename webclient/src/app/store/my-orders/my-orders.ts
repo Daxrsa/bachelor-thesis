@@ -4,13 +4,14 @@ import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { TimelineModule } from 'primeng/timeline';
 import { TOKEN_STORAGE_KEY } from '@/app/auth/token-storage';
 import { OrderResponse, ProductService } from '@/app/pages/service/product.service';
 
 @Component({
     selector: 'app-store-my-orders',
     standalone: true,
-    imports: [CommonModule, RouterModule, ButtonModule, TableModule, TagModule],
+    imports: [CommonModule, RouterModule, ButtonModule, TableModule, TagModule, TimelineModule],
     providers: [ProductService],
     template: `
         <div class="p-4 md:p-6 xl:p-8">
@@ -58,7 +59,7 @@ import { OrderResponse, ProductService } from '@/app/pages/service/product.servi
                                 <td class="font-mono text-sm">{{ shortId(order.id) }}</td>
                                 <td>{{ order.items.length }}</td>
                                 <td class="font-semibold">{{ order.totalAmount | currency: order.currencyCode }}</td>
-                                <td><p-tag [value]="order.status" [severity]="statusSeverity(order.status)"></p-tag></td>
+                                <td><p-tag [value]="normalizeStatus(order.status)" [severity]="statusSeverity(order.status)"></p-tag></td>
                                 <td>{{ order.paymentMethod }}</td>
                             </tr>
                         </ng-template>
@@ -66,6 +67,19 @@ import { OrderResponse, ProductService } from '@/app/pages/service/product.servi
                             <tr>
                                 <td colspan="7" class="bg-surface-50 dark:bg-surface-900">
                                     <div class="p-3 flex flex-col gap-3">
+                                        <p-timeline [value]="statusSteps" layout="horizontal" align="top">
+                                            <ng-template #marker let-status>
+                                                <span
+                                                    class="flex w-8 h-8 items-center justify-center rounded-full text-white"
+                                                    [ngClass]="isStatusReached(order.status, status) ? 'bg-primary' : 'bg-surface-400'"
+                                                >
+                                                    <i class="pi" [ngClass]="statusIcon(status)"></i>
+                                                </span>
+                                            </ng-template>
+                                            <ng-template #content let-status>
+                                                <span [class.font-semibold]="isCurrentStatus(order.status, status)">{{ status }}</span>
+                                            </ng-template>
+                                        </p-timeline>
                                         <div class="flex gap-x-6 gap-y-1 flex-wrap text-sm text-surface-600 dark:text-surface-300">
                                             <span>Paid {{ order.paidAtUtc | date: 'medium' }}</span>
                                             <span>Reference: {{ order.providerReference || order.paymentId }}</span>
@@ -95,6 +109,7 @@ export class StoreMyOrders implements OnInit {
     error = '';
     orders: OrderResponse[] = [];
     expandedOrderIds: Record<string, boolean> = {};
+    readonly statusSteps = ['Processed', 'Accepted', 'Dispatched', 'Completed'];
 
     ngOnInit() {
         this.hasToken = !!localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -127,6 +142,45 @@ export class StoreMyOrders implements OnInit {
     }
 
     statusSeverity(status: string) {
-        return (status ?? '').toLowerCase() === 'paid' ? 'success' : 'info';
+        switch (this.normalizeStatus(status).toLowerCase()) {
+            case 'completed':
+                return 'success';
+            case 'dispatched':
+            case 'accepted':
+                return 'info';
+            case 'processed':
+                return 'warn';
+            default:
+                return 'secondary';
+        }
+    }
+
+    normalizeStatus(status: string) {
+        return (status ?? '').toLowerCase() === 'paid' ? 'Processed' : status || 'Processed';
+    }
+
+    isCurrentStatus(orderStatus: string, step: string) {
+        return this.normalizeStatus(orderStatus).toLowerCase() === step.toLowerCase();
+    }
+
+    isStatusReached(orderStatus: string, step: string) {
+        const currentIndex = this.statusSteps.findIndex((value) => value.toLowerCase() === this.normalizeStatus(orderStatus).toLowerCase());
+        const stepIndex = this.statusSteps.findIndex((value) => value.toLowerCase() === step.toLowerCase());
+        return currentIndex >= 0 && stepIndex >= 0 && stepIndex <= currentIndex;
+    }
+
+    statusIcon(status: string) {
+        switch (status.toLowerCase()) {
+            case 'processed':
+                return 'pi-inbox';
+            case 'accepted':
+                return 'pi-check';
+            case 'dispatched':
+                return 'pi-send';
+            case 'completed':
+                return 'pi-flag';
+            default:
+                return 'pi-circle';
+        }
     }
 }

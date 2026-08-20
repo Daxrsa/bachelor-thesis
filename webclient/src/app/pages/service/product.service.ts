@@ -221,6 +221,16 @@ export class ProductService {
         return firstValueFrom(this.http.get<OrderResponse[]>(`${this.apiBase}/api/p/order-plugin/orders/me`));
     }
 
+    getAllOrders() {
+        return firstValueFrom(this.http.get<OrderResponse[]>(`${this.apiBase}/api/p/order-plugin/orders`));
+    }
+
+    updateOrderStatus(orderId: string, status: string) {
+        return firstValueFrom(
+            this.http.patch<OrderResponse>(`${this.apiBase}/api/p/order-plugin/orders/${encodeURIComponent(orderId)}/status`, { status })
+        );
+    }
+
     getStripeWebhookEvents() {
         return firstValueFrom(
             this.http.get<StripeWebhookResponse[]>(`${this.apiBase}/api/p/payment-plugin/payments/webhook-events`).pipe(

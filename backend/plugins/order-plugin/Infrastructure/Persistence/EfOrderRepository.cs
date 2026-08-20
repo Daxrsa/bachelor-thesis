@@ -13,6 +13,10 @@ public sealed class EfOrderRepository(OrdersDbContext db) : IOrderRepository
         db.Orders.Include(order => order.Items)
             .FirstOrDefaultAsync(order => order.PaymentId == paymentId, cancellationToken);
 
+    public Task<Order?> GetByIdAsync(string orderId, CancellationToken cancellationToken) =>
+        db.Orders.Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == orderId, cancellationToken);
+
     public Task<Order?> GetByIdForUserAsync(string orderId, string userId, CancellationToken cancellationToken) =>
         db.Orders.Include(order => order.Items)
             .FirstOrDefaultAsync(order => order.Id == orderId && order.UserId == userId, cancellationToken);
@@ -20,6 +24,11 @@ public sealed class EfOrderRepository(OrdersDbContext db) : IOrderRepository
     public async Task<IReadOnlyList<Order>> ListByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         await db.Orders.Include(order => order.Items)
             .Where(order => order.UserId == userId)
+            .OrderByDescending(order => order.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken cancellationToken) =>
+        await db.Orders.Include(order => order.Items)
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 

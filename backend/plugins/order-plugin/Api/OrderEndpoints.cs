@@ -23,6 +23,12 @@ public static class OrderEndpoints
             });
         });
 
+        app.MapGet("/orders", async (IOrderService service, CancellationToken cancellationToken) =>
+        {
+            var orders = await service.ListAllAsync(cancellationToken);
+            return Results.Ok(orders.Select(ToResponse));
+        });
+
         app.MapGet("/orders/me", async (HttpContext context, IOrderService service, CancellationToken cancellationToken) =>
         {
             var userId = ResolveUserId(context);
@@ -35,6 +41,21 @@ public static class OrderEndpoints
             var userId = ResolveUserId(context);
             var order = await service.GetByIdForUserAsync(orderId, userId, cancellationToken);
             return order is null ? Results.NotFound(new { error = "Order not found" }) : Results.Ok(ToResponse(order));
+        });
+
+        app.MapPatch("/orders/{orderId}/status", async (string orderId, UpdateOrderStatusRequest request, IOrderService service, CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var order = await service.UpdateStatusAsync(orderId, request.Status, cancellationToken);
+                return order is null
+                    ? Results.NotFound(new { error = "Order not found" })
+                    : Results.Ok(ToResponse(order));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
         });
 
         return app;
@@ -53,7 +74,7 @@ public static class OrderEndpoints
         order.UserId,
         order.CartId,
         order.PaymentId,
-        order.Status,
+        order.OrderStatus.ToString(),
         order.TotalAmount,
         order.CurrencyCode,
         order.PaymentMethod,
@@ -78,3 +99,5 @@ public sealed record OrderResponse(
     IReadOnlyList<OrderItemResponse> Items);
 
 public sealed record OrderItemResponse(string ProductId, int Quantity, decimal UnitPrice, decimal LineTotal);
+
+public sealed record UpdateOrderStatusRequest(string Status);

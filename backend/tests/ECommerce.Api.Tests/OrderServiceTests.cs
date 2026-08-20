@@ -62,6 +62,20 @@ public sealed class OrderServiceTests
         Assert.Single(repository.Orders);
     }
 
+    [Fact]
+    public async Task UpdateStatusAsync_UpdatesExistingOrder()
+    {
+        var repository = new FakeOrderRepository();
+        var service = new OrderService(repository, new FakeOrderEventPublisher());
+        var created = await service.HandlePaymentSucceededAsync(CreatePaymentSucceeded("payment-1", "checkout-1"), CancellationToken.None);
+
+        var updated = await service.UpdateStatusAsync(created.Id, "Dispatched", CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal(OrderStatus.Dispatched, updated!.OrderStatus);
+        Assert.Equal(OrderStatus.Dispatched, repository.Orders[0].OrderStatus);
+    }
+
     private static IntegrationEventEnvelope<PaymentSucceededEvent> CreatePaymentSucceeded(string paymentId, string correlationId) => new()
     {
         EventName = EventNames.PaymentSucceeded,
@@ -94,11 +108,17 @@ public sealed class OrderServiceTests
         public Task<Order?> GetByPaymentIdAsync(string paymentId, CancellationToken cancellationToken) =>
             Task.FromResult<Order?>(Orders.FirstOrDefault(order => order.PaymentId == paymentId));
 
+        public Task<Order?> GetByIdAsync(string orderId, CancellationToken cancellationToken) =>
+            Task.FromResult<Order?>(Orders.FirstOrDefault(order => order.Id == orderId));
+
         public Task<Order?> GetByIdForUserAsync(string orderId, string userId, CancellationToken cancellationToken) =>
             Task.FromResult<Order?>(Orders.FirstOrDefault(order => order.Id == orderId && order.UserId == userId));
 
         public Task<IReadOnlyList<Order>> ListByUserIdAsync(string userId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<Order>>(Orders.Where(order => order.UserId == userId).ToList());
+
+        public Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Order>>(Orders.ToList());
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
