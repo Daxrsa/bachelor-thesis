@@ -17,6 +17,9 @@ public interface ICartService
     Task HandleOrderCreatedAsync(
         IntegrationEventEnvelope<OrderCreatedEvent> envelope,
         CancellationToken cancellationToken);
+    Task HandlePaymentSucceededAsync(
+        IntegrationEventEnvelope<PaymentSucceededEvent> envelope,
+        CancellationToken cancellationToken);
 }
 
 public sealed class CartService(ICartRepository repository) : ICartService
@@ -132,14 +135,26 @@ public sealed class CartService(ICartRepository repository) : ICartService
         return cart;
     }
 
-    public async Task HandleOrderCreatedAsync(
+    public Task HandleOrderCreatedAsync(
         IntegrationEventEnvelope<OrderCreatedEvent> envelope,
+        CancellationToken cancellationToken) =>
+        DeleteMatchingCartAsync(envelope.ResourceIds.UserId, envelope.ResourceIds.CartId, "OrderCreatedEvent", cancellationToken);
+
+    public Task HandlePaymentSucceededAsync(
+        IntegrationEventEnvelope<PaymentSucceededEvent> envelope,
+        CancellationToken cancellationToken) =>
+        DeleteMatchingCartAsync(envelope.ResourceIds.UserId, envelope.ResourceIds.CartId, "PaymentSucceededEvent", cancellationToken);
+
+    private async Task DeleteMatchingCartAsync(
+        string? userId,
+        string? cartId,
+        string eventName,
         CancellationToken cancellationToken)
     {
-        var userId = envelope.ResourceIds.UserId
-            ?? throw new InvalidOperationException("OrderCreatedEvent requires resourceIds.userId");
-        var cartId = envelope.ResourceIds.CartId
-            ?? throw new InvalidOperationException("OrderCreatedEvent requires resourceIds.cartId");
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException($"{eventName} requires resourceIds.userId");
+        if (string.IsNullOrWhiteSpace(cartId))
+            throw new InvalidOperationException($"{eventName} requires resourceIds.cartId");
 
         var cart = await repository.GetByUserIdAsync(userId, cancellationToken);
         if (cart is null || !string.Equals(cart.Id, cartId, StringComparison.Ordinal))

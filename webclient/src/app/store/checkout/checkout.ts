@@ -232,7 +232,8 @@ export class StoreCheckout implements OnInit {
                 })
             );
         } catch (e: any) {
-            this.error = e?.error?.error ?? e?.message ?? 'Failed to load cart.';
+            // The cart plugin deletes the cart after a successful payment, so 404 means empty, not broken.
+            this.error = e?.status === 404 ? '' : (e?.error?.error ?? e?.message ?? 'Failed to load cart.');
             this.cart = null;
             this.rows = [];
         } finally {

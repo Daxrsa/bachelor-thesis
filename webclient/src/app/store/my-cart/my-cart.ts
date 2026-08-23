@@ -43,12 +43,9 @@ interface CartRow {
                     <p class="m-0 text-red-700 dark:text-red-300"><b>Error:</b> {{ error }}</p>
                 </div>
 
-                <div *ngIf="hasToken && !loading && !error && cart && cart.items.length === 0" class="card border border-surface-200 dark:border-surface-700">
+                <div *ngIf="hasToken && !loading && !error && (!cart || cart.items.length === 0)" class="card border border-surface-200 dark:border-surface-700">
                     <h3 class="m-0 text-xl font-semibold">Your cart is empty</h3>
-                    <p class="text-surface-500 dark:text-surface-400">Add products to your cart to see them here.</p>
-                    <div>
-                        <p-button label="Go to products" icon="pi pi-arrow-right" [routerLink]="['/store/products']"></p-button>
-                    </div>
+                    <p class="text-surface-500 dark:text-surface-400">Your added items will show up here.</p>
                 </div>
 
                 <div *ngIf="hasToken && !loading && !error && cart && cart.items.length > 0" class="card border border-surface-200 dark:border-surface-700">
@@ -183,7 +180,8 @@ export class StoreMyCart implements OnInit {
             this.rows = await this.hydrateRows(this.cart.items);
             this.removeErrorByProduct = {};
         } catch (e: any) {
-            this.error = e?.error?.error ?? e?.message ?? 'Failed to load cart.';
+            // The cart plugin deletes the cart after a successful payment, so 404 means empty, not broken.
+            this.error = e?.status === 404 ? '' : (e?.error?.error ?? e?.message ?? 'Failed to load cart.');
             this.cart = null;
             this.rows = [];
         } finally {
