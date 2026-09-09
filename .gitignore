@@ -25,6 +25,7 @@ node_modules/
 
 # NuGet
 *.nupkg
+nupkgs/
 
 graphify-out
 

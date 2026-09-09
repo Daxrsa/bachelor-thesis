@@ -52,7 +52,9 @@ public sealed class PluginReconciliationHostedServiceTests
             var service = new PluginReconciliationHostedService(
                 provider.GetRequiredService<IServiceScopeFactory>(),
                 runtime,
-                new MarketplaceCatalog(catalogPath),
+                new CompositeMarketplaceCatalog(
+                    new IMarketplaceSource[] { new BundledMarketplaceSource(catalogPath, name: "test") },
+                    NullLogger<CompositeMarketplaceCatalog>.Instance),
                 NullLogger<PluginReconciliationHostedService>.Instance);
 
             await service.StartAsync(CancellationToken.None);

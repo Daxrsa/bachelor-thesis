@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { AppMenuitem } from './app.menuitem';
+import { CurrentUserService } from '@/app/auth/current-user.service';
 
 @Component({
     selector: 'app-menu',
@@ -18,23 +19,37 @@ import { AppMenuitem } from './app.menuitem';
         }
     </ul> `,
 })
-export class AppMenu {
+export class AppMenu implements OnInit {
+    private readonly currentUser = inject(CurrentUserService);
+    private readonly cdr = inject(ChangeDetectorRef);
     model: MenuItem[] = [];
 
-    ngOnInit() {
-        this.model = [
+    async ngOnInit() {
+        await this.currentUser.refresh();
+        this.model = this.buildMenu();
+        this.cdr.detectChanges();
+    }
+
+    private buildMenu(): MenuItem[] {
+        const adminItems: MenuItem[] = [
+            { label: 'Plugin Catalog', icon: 'pi pi-fw pi-box', routerLink: ['/plugin-catalog'] },
+            { label: 'Publisher Portal', icon: 'pi pi-fw pi-send', routerLink: ['/publisher'] },
+            { label: 'Publisher Requests', icon: 'pi pi-fw pi-users', routerLink: ['/publisher-requests'] }
+        ];
+
+        if (this.currentUser.isPublisher()) {
+            adminItems.push({ label: 'My Plugins', icon: 'pi pi-fw pi-th-large', routerLink: ['/publisher/plugins'] });
+        }
+
+        return [
             {
                 label: 'Home',
-                items: [
-                    { label: 'Main Store', icon: 'pi pi-fw pi-home', routerLink: ['/store'] }
-                ]
+                items: [{ label: 'Main Store', icon: 'pi pi-fw pi-home', routerLink: ['/store'] }]
             },
             {
                 label: 'Administration',
-                items: [
-                    { label: 'Plugin Catalog', icon: 'pi pi-fw pi-box', routerLink: ['/plugin-catalog'] }
-                ]
-            },
+                items: adminItems
+            }
         ];
     }
 }

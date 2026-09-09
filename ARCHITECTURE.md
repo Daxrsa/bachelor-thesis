@@ -162,10 +162,32 @@ downstream as headers.
 
 | Route | Purpose |
 |---|---|
-| `GET /api/plugins/marketplace` | Catalog entries + `installed` flag (anonymous) |
+| `GET /api/plugins/marketplace` | Catalog entries + `installed` flag (anonymous) — merges official + published |
 | `GET /api/plugins` | Installed records |
 | `POST /api/plugins/{pluginId}/install` | Install with explicit permission grants |
 | `DELETE /api/plugins/{pluginId}` | Uninstall and remove containers |
+
+`MarketplaceController` → `/api/marketplace`:
+
+| Route | Auth | Purpose |
+|---|---|---|
+| `GET /api/marketplace/listings` | anonymous | Third-party listings only |
+| `GET /api/marketplace/listings/mine` | `publisher` or `admin` | Current user's listings + install state |
+| `GET /api/marketplace/listings/{id}` | owner or `admin` | One listing for the publisher form |
+| `POST /api/marketplace/listings` | `publisher` or `admin` | Publish / upsert own listing (400 validation, 409 collision) |
+| `PUT /api/marketplace/listings/{id}` | owner publisher | Update listing |
+| `DELETE /api/marketplace/listings/{id}` | owner or `admin` | Remove listing (does not uninstall containers) |
+| `POST /api/marketplace/publisher-requests` | authenticated | Request the `publisher` role |
+| `GET /api/marketplace/publisher-requests/mine` | authenticated | Latest request for the current user |
+| `GET /api/marketplace/publisher-requests` | `admin` | Pending requests |
+| `POST /api/marketplace/publisher-requests/{id}/approve` | `admin` | Grant `publisher` |
+| `POST /api/marketplace/publisher-requests/{id}/reject` | `admin` | Reject request |
+
+Authors use the **Publisher Portal** (`/publisher`) to request access, publish manifests, and manage listings. Images are pushed to a container registry separately.
+
+Roles: `user` (default), `publisher` (may publish), `admin` (approve requests and grant roles via
+`POST /api/auth/users/role`). Bootstrap admin is created from `Bootstrap:AdminEmail` /
+`Bootstrap:AdminPassword` on startup.
 
 `PluginService` enforces install rules: manifest must exist, **every** requested permission must be
 granted, plugin must not already be installed. It persists a row in `Installing`, calls the runtime,
@@ -320,6 +342,12 @@ automatically.
 ---
 
 ## 7. Plugin catalogue
+
+Plugins are discovered from a **composite marketplace**: the official file
+`marketplace/catalog.json` plus third-party listings published into core Postgres
+(`MarketplaceListings`). Official IDs always win on collision. Authors with the
+`publisher` role publish via `POST /api/marketplace/listings` (see `PLUGIN_AUTHOR.md`
+and `backend/templates/ecommerce-plugin`).
 
 | Plugin | Owns | HTTP surface (inside container) | Publishes | Consumes |
 |---|---|---|---|---|
@@ -780,7 +808,12 @@ docker run --rm --network ecommerce_plugins curlimages/curl:8.10.1 -sS -i \
 - **No dead-letter queue.** Nacked messages are lost, so a transient database blip during
   `payment.succeeded.v1` handling permanently orphans that cart.
 - **`payment.failed.v1` has no subscriber**, so failures are recorded but never acted on.
-- **Static marketplace.** `catalog.json` is read from disk rather than a real registry.
+- **Marketplace is hybrid.** Official plugins remain in `catalog.json`; third-party listings are
+  stored in Postgres and published by users with the `publisher` role. There is still no image
+  signature verification before pull.
+- **Third-party authoring** is supported via NuGet contract packages + `dotnet new ecommerce-plugin`,
+  but plugins still share the `ecommerce_plugins` network and plaintext DB credentials in manifests
+  — fine for first-party, not for untrusted authors.
 - **`uiExtensions` is unused** — declared in the manifest, but the Angular shell hardcodes each
   plugin's admin page instead of loading remote UI modules.
 - **Eventual consistency is visible to users.** Cart mutations return `202` and the UI compensates

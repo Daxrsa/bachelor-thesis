@@ -24,14 +24,14 @@ public sealed record MarketplaceEntry(PluginManifest Manifest, bool Installed);
 public sealed class PluginService : IPluginService
 {
     private readonly AppDbContext _db;
-    private readonly MarketplaceCatalog _catalog;
+    private readonly IMarketplaceCatalog _catalog;
     private readonly IPluginRuntime _runtime;
     private readonly PluginRuntimeOptions _opts;
     private readonly ILogger<PluginService> _log;
 
     public PluginService(
         AppDbContext db,
-        MarketplaceCatalog catalog,
+        IMarketplaceCatalog catalog,
         IPluginRuntime runtime,
         IOptions<PluginRuntimeOptions> opts,
         ILogger<PluginService> log)

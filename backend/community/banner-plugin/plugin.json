@@ -1,0 +1,13 @@
+{
+  "id": "banner-plugin",
+  "name": "Store Banner",
+  "version": "1.0.0",
+  "description": "Shows a storefront promo banner with a weekly shipping offer.",
+  "publisher": "community",
+  "image": "localhost:5000/ecommerce/banner-plugin:1.0.0",
+  "containerPort": 8080,
+  "healthEndpoint": "/health",
+  "hostApi": "^1.0.0",
+  "permissions": [],
+  "uiExtensions": {}
+}

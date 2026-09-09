@@ -63,4 +63,29 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
             message = res.Message
         });
     }
+
+    public sealed record SetRoleRequest(string Email, string Role);
+    public sealed record PromoteAdminRequest(string Email);
+
+    /// <summary>Promote or demote a user role. Admin only.</summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("users/role")]
+    public async Task<IActionResult> SetRole([FromBody] SetRoleRequest body, CancellationToken ct)
+    {
+        var res = await _auth.SetUserRoleAsync(body.Email, body.Role, ct);
+        return res.Success
+            ? Ok(new { email = res.Email, role = res.Role })
+            : BadRequest(new { error = res.Error });
+    }
+
+    /// <summary>Development shortcut: grant admin without being signed in.</summary>
+    [AllowAnonymous]
+    [HttpPost("promote-admin")]
+    public async Task<IActionResult> PromoteAdmin([FromBody] PromoteAdminRequest body, CancellationToken ct)
+    {
+        var res = await _auth.SetUserRoleAsync(body.Email, "admin", ct);
+        return res.Success
+            ? Ok(new { email = res.Email, role = res.Role })
+            : BadRequest(new { error = res.Error });
+    }
 }

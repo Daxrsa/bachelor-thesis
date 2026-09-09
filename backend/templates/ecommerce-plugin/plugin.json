@@ -1,0 +1,13 @@
+{
+  "id": "sample-plugin",
+  "name": "Sample Plugin",
+  "version": "1.0.0",
+  "description": "Scaffolded ECommerce plugin. Replace this description before publishing.",
+  "publisher": "community",
+  "image": "localhost:5000/ecommerce/sample-plugin:1.0.0",
+  "containerPort": 8080,
+  "healthEndpoint": "/health",
+  "hostApi": "^1.0.0",
+  "permissions": [],
+  "uiExtensions": {}
+}

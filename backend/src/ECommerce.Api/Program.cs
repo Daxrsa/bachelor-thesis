@@ -79,8 +79,23 @@ builder.Services.AddSingleton(sp =>
 {
     var path = builder.Configuration["Marketplace:CatalogPath"]
                ?? throw new InvalidOperationException("Missing Marketplace:CatalogPath");
-    return new MarketplaceCatalog(path);
+    var log = sp.GetRequiredService<ILoggerFactory>().CreateLogger<BundledMarketplaceSource>();
+    return new BundledMarketplaceSource(path, name: "official", log);
 });
+builder.Services.AddSingleton<IMarketplaceSource>(sp => sp.GetRequiredService<BundledMarketplaceSource>());
+builder.Services.AddSingleton<IMarketplaceSource, DatabaseMarketplaceSource>();
+builder.Services.AddSingleton<IMarketplaceCatalog>(sp =>
+{
+    var sources = sp.GetServices<IMarketplaceSource>()
+        // Official (BundledMarketplaceSource) must win collisions — register it first via AddSingleton order:
+        // we already register Bundled then Database; GetServices preserves registration order.
+        .ToList();
+    return new CompositeMarketplaceCatalog(
+        sources,
+        sp.GetRequiredService<ILoggerFactory>().CreateLogger<CompositeMarketplaceCatalog>());
+});
+builder.Services.AddScoped<IMarketplacePublishService, MarketplacePublishService>();
+builder.Services.AddScoped<IPublisherRequestService, PublisherRequestService>();
 builder.Services.AddScoped<IPluginService, PluginService>();
 builder.Services.AddHttpClient("plugin-proxy");
 builder.Services.AddHostedService<PluginReconciliationHostedService>();
@@ -129,6 +144,14 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.EnsureCreatedAsync();
+
+    var bootstrapEmail = builder.Configuration["Bootstrap:AdminEmail"];
+    var bootstrapPassword = builder.Configuration["Bootstrap:AdminPassword"];
+    if (!string.IsNullOrWhiteSpace(bootstrapEmail) && !string.IsNullOrWhiteSpace(bootstrapPassword))
+    {
+        var auth = scope.ServiceProvider.GetRequiredService<IAuthService>();
+        await auth.EnsureBootstrapAdminAsync(bootstrapEmail, bootstrapPassword);
+    }
 }
 
 if (app.Environment.IsDevelopment())

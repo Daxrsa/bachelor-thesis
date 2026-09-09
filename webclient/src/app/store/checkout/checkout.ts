@@ -146,7 +146,7 @@ interface CheckoutRow {
                                     *ngIf="row.product"
                                     class="w-12 h-12 rounded object-cover border border-surface-200 dark:border-surface-700"
                                     [src]="productImage(row.product)"
-                                    [alt]="row.product?.name || row.item.productId"
+                                    [alt]="row.product.name || row.item.productId"
                                 />
                                 <div class="flex flex-col">
                                     <span class="font-medium">{{ row.product?.name || row.item.productId }}</span>

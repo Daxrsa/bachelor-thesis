@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "ECommerce platform",
+  "classifications": ["Web", "ECommerce", "Plugin"],
+  "identity": "ECommerce.Plugin.Template",
+  "name": "ECommerce Plugin",
+  "shortName": "ecommerce-plugin",
+  "sourceName": "EcommercePlugin",
+  "preferNameDirectory": true,
+  "symbols": {
+    "PluginId": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "sample-plugin",
+      "replaces": "sample-plugin",
+      "description": "Marketplace plugin id (must end with -plugin)"
+    },
+    "PluginName": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "Sample Plugin",
+      "replaces": "Sample Plugin",
+      "description": "Human-readable plugin name"
+    }
+  }
+}

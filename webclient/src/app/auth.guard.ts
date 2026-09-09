@@ -1,20 +1,8 @@
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { inject } from '@angular/core';
 import { TOKEN_STORAGE_KEY } from './auth/token-storage';
-
-function decodeJwtPayload(token: string): Record<string, any> | null {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-
-    try {
-        const base64Url = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const padded = base64Url.padEnd(Math.ceil(base64Url.length / 4) * 4, '=');
-        const json = atob(padded);
-        return JSON.parse(json);
-    } catch {
-        return null;
-    }
-}
+import { CurrentUserService } from './auth/current-user.service';
+import { decodeJwtPayload, isPublisherRole, jwtRole } from './auth/jwt';
 
 function hasValidJwt(token: string): boolean {
     const payload = decodeJwtPayload(token);
@@ -25,7 +13,7 @@ function hasValidJwt(token: string): boolean {
     return payload['exp'] > nowInSeconds;
 }
 
-export const authGuard: CanActivateFn = (_route, state) => {
+function requireAuth(returnUrl: string): true | UrlTree {
     const router = inject(Router);
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
 
@@ -35,6 +23,36 @@ export const authGuard: CanActivateFn = (_route, state) => {
 
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     return router.createUrlTree(['/auth/login'], {
-        queryParams: { returnUrl: state.url }
+        queryParams: { returnUrl }
     });
+}
+
+export const authGuard: CanActivateFn = (_route, state) => requireAuth(state.url);
+
+export const publisherGuard: CanActivateFn = async (_route, state) => {
+    const router = inject(Router);
+    const currentUser = inject(CurrentUserService);
+    const auth = requireAuth(state.url);
+    if (auth !== true) return auth;
+
+    const role = currentUser.user()?.role ?? jwtRole();
+    if (isPublisherRole(role)) return true;
+
+    const me = await currentUser.refresh();
+    if (isPublisherRole(me?.role)) return true;
+    return router.createUrlTree(['/publisher']);
 };
+
+export const adminGuard: CanActivateFn = async (_route, state) => {
+    const router = inject(Router);
+    const currentUser = inject(CurrentUserService);
+    const auth = requireAuth(state.url);
+    if (auth !== true) return auth;
+
+    if (currentUser.isAdmin() || jwtRole() === 'admin') return true;
+
+    const me = await currentUser.refresh();
+    if (me?.role?.toLowerCase() === 'admin') return true;
+    return router.createUrlTree(['/store']);
+};
+

@@ -8,7 +8,7 @@ namespace ECommerce.Api.Plugins;
 public sealed class PluginReconciliationHostedService(
     IServiceScopeFactory scopeFactory,
     IPluginRuntime runtime,
-    MarketplaceCatalog catalog,
+    IMarketplaceCatalog catalog,
     ILogger<PluginReconciliationHostedService> log) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)

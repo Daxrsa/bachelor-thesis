@@ -72,6 +72,8 @@ to install `hello-plugin`. Once running, call it through the core:
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/api/p/hello-plugin/greeting
 ```
 
+Third-party authors: see [PLUGIN_AUTHOR.md](PLUGIN_AUTHOR.md) for the plugin template and the **Publisher Portal** (`/publisher`) used to request access and publish listings. Bootstrap admin credentials are under `Bootstrap:*` in appsettings (default `admin@ecommerce.local`).
+
 ## The plugin contract
 
 Every plugin ships a `plugin.json` manifest and a Docker image. The manifest

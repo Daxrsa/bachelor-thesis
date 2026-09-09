@@ -54,6 +54,7 @@ import { cartItemCount, ProductService } from '@/app/pages/service/product.servi
                     <div class="flex items-center gap-2">
                         <span *ngIf="currentUserEmail" class="hidden md:inline text-sm text-surface-600 dark:text-surface-300">{{ currentUserEmail }}</span>
                         <p-button *ngIf="!currentUserEmail" label="Login" icon="pi pi-sign-in" severity="secondary" [outlined]="true" [routerLink]="['/auth/login']"></p-button>
+                        <p-button *ngIf="!currentUserEmail" label="Register" icon="pi pi-user-plus" [routerLink]="['/auth/register']"></p-button>
                         <p-button label="Products" icon="pi pi-th-large" severity="secondary" [outlined]="true" [routerLink]="['/store/products']"></p-button>
                         <p-button
                             *ngIf="currentUserEmail"

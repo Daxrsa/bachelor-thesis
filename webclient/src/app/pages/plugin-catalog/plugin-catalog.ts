@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { firstValueFrom, Observable, timeout } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { CurrentUserService } from '@/app/auth/current-user.service';
 
 interface MarketplaceEntry {
     manifest: {
@@ -12,6 +13,12 @@ interface MarketplaceEntry {
         version: string;
         description: string;
         publisher: string;
+        image?: string;
+        containerPort?: number;
+        healthEndpoint?: string;
+        hostApi?: string;
+        permissions?: string[];
+        uiExtensions?: Record<string, string>;
     };
     installed: boolean;
 }
@@ -19,7 +26,7 @@ interface MarketplaceEntry {
 @Component({
     selector: 'app-plugin-catalog',
     standalone: true,
-    imports: [CommonModule, ButtonModule],
+    imports: [CommonModule, RouterModule, ButtonModule],
     template: `
         <div class="card">
             <div class="flex items-center justify-between mb-4">
@@ -28,6 +35,14 @@ interface MarketplaceEntry {
             </div>
 
             <div *ngIf="error" class="text-red-500 mb-4"><b>Error:</b> {{ error }}</div>
+
+            <div *ngIf="currentUser.isPublisher()" class="mb-6 p-4 border rounded-lg surface-border flex items-center justify-between gap-3">
+                <div>
+                    <div class="font-medium">Publish plugins from the publisher portal</div>
+                    <div class="text-sm text-muted-color">Listings appear here after you publish a manifest. Images stay in the container registry.</div>
+                </div>
+                <p-button label="Open portal" icon="pi pi-send" routerLink="/publisher" />
+            </div>
 
             <div class="mb-6">
                 <div class="font-semibold text-lg mb-3">Installed ({{ installed.length }})</div>
@@ -109,6 +124,7 @@ export class PluginCatalog implements OnInit {
     private readonly http = inject(HttpClient);
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly router = inject(Router);
+    readonly currentUser = inject(CurrentUserService);
     private readonly apiBase = 'http://localhost:8080';
     private readonly requestTimeoutMs = 45000;
 
@@ -127,6 +143,7 @@ export class PluginCatalog implements OnInit {
     }
 
     ngOnInit() {
+        void this.currentUser.refresh();
         void this.load();
     }
 

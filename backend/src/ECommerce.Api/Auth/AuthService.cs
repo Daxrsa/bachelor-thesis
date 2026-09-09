@@ -14,11 +14,14 @@ public interface IAuthService
     Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct = default);
     Task<SeedUserResult> SeedUserAsync(string email, string password, CancellationToken ct = default);
     Task<CurrentUserResult?> GetCurrentUserAsync(Guid userId, CancellationToken ct = default);
+    Task<SetRoleResult> SetUserRoleAsync(string email, string role, CancellationToken ct = default);
+    Task EnsureBootstrapAdminAsync(string email, string password, CancellationToken ct = default);
 }
 
 public sealed record AuthResult(bool Success, string? Token, string? Error, DateTime? ExpiresAt);
 public sealed record SeedUserResult(bool Seeded, string Email, string Message);
 public sealed record CurrentUserResult(Guid Id, string Email, string Role);
+public sealed record SetRoleResult(bool Success, string? Error, string Email, string Role);
 
 public sealed class AuthService(AppDbContext db, JwtOptions jwt) : IAuthService
 {
@@ -75,6 +78,44 @@ public sealed class AuthService(AppDbContext db, JwtOptions jwt) : IAuthService
         return user is null ? null : new CurrentUserResult(user.Id, user.Email, user.Role);
     }
 
+    public async Task<SetRoleResult> SetUserRoleAsync(string email, string role, CancellationToken ct = default)
+    {
+        email = email.Trim().ToLowerInvariant();
+        role = role.Trim().ToLowerInvariant();
+        if (role is not ("user" or "publisher" or "admin"))
+            return new SetRoleResult(false, "Role must be user, publisher, or admin", email, role);
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (user is null)
+            return new SetRoleResult(false, "User not found", email, role);
+
+        user.Role = role;
+        await _db.SaveChangesAsync(ct);
+        return new SetRoleResult(true, null, email, role);
+    }
+
+    public async Task EnsureBootstrapAdminAsync(string email, string password, CancellationToken ct = default)
+    {
+        email = email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (user is null)
+        {
+            user = new User
+            {
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = "admin"
+            };
+            _db.Users.Add(user);
+        }
+        else if (!string.Equals(user.Role, "admin", StringComparison.OrdinalIgnoreCase))
+        {
+            user.Role = "admin";
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
     private AuthResult IssueToken(User user)
     {
         var expires = DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
@@ -82,7 +123,8 @@ public sealed class AuthService(AppDbContext db, JwtOptions jwt) : IAuthService
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            // Short claim type matches TokenValidationParameters.RoleClaimType = "role"
+            new Claim("role", user.Role)
         };
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
