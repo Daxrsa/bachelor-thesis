@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { CarouselModule } from 'primeng/carousel';
 import { TagModule } from 'primeng/tag';
 import { Product, ProductService } from '@/app/pages/service/product.service';
+import { StoreBanner } from '@/app/store/store-banner/store-banner';
 
 interface StoreCategory {
     name: string;
@@ -14,10 +15,12 @@ interface StoreCategory {
 @Component({
     selector: 'app-store-home',
     standalone: true,
-    imports: [CommonModule, RouterModule, ButtonModule, CarouselModule, TagModule],
+    imports: [CommonModule, RouterModule, ButtonModule, CarouselModule, TagModule, StoreBanner],
     providers: [ProductService],
     template: `
         <main class="mx-auto max-w-[96rem] px-3 py-4 md:px-6 md:py-6 xl:px-8 xl:pb-16">
+            <app-store-banner class="mb-8 block"></app-store-banner>
+
             <section class="relative grid min-h-[34rem] overflow-hidden border-t-[5px] border-orange-500 bg-emerald-50 px-6 py-12 md:px-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12 lg:px-16 lg:py-20">
                 <div class="relative z-10 flex max-w-2xl flex-col items-start justify-center">
                     <p class="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">A curated marketplace</p>
